@@ -12,6 +12,7 @@ public abstract class BinaryGate extends Component {
 
   @Override
   public void setInput(int pinIndex, boolean signal) throws InvalidInputException {
+    // Recieves two inputs
     if (pinIndex == 0) {
       inputA = signal;
     } else if (pinIndex == 1) {
@@ -19,6 +20,6 @@ public abstract class BinaryGate extends Component {
     } else {
       throw new InvalidInputException(getName(), pinIndex, 2);
     }
-    update();
+    update(); // Propogate signal
   }
 }

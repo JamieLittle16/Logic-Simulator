@@ -9,7 +9,7 @@ public class Wire {
 
   public Wire(Component source) {
     this.source = source;
-
+    // Updates the input component forming the connection
     if (source != null) {
       source.setOutputWire(this);
     }
@@ -30,10 +30,12 @@ public class Wire {
   }
 
   public void setSignal(boolean newSignal) {
+    // Ensures it only updates if a change has occurred
     if (signal == newSignal) {
       return;
     }
     signal = newSignal;
+    // Updates all the gates connected
     for (PortConnection pc : destinations) {
       pc.component.setInput(pc.inputIndex, signal);
     }

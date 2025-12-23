@@ -9,8 +9,10 @@ public abstract class Component {
     this.name = name;
   }
 
+  // Sets the logic that updates the gates state
   public abstract void updateLogic();
 
+  // Sets the logic that updates the input(s)
   public abstract void setInput(int inputIndex, boolean state);
 
   public String getName() {
@@ -25,6 +27,7 @@ public abstract class Component {
     return outputWire;
   }
 
+  // Updates its own state, and triggers update in the output wire
   public void update() {
     updateLogic();
     if (outputWire != null) {

@@ -16,3 +16,19 @@ java {
         languageVersion = JavaLanguageVersion.of(25) 
     }
 }
+
+jar {
+    manifest {
+        attributes(
+            'Main-Class': 'uk.ac.cam.jml229.logic.Main' 
+        )
+    }
+    // Includes any dependencies in the jar so it's standalone
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
+
+application {
+    mainClass = 'uk.ac.cam.jml229.logic.Main'
+}

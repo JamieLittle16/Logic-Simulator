@@ -11,9 +11,11 @@ public abstract class UnaryGate extends Component {
 
   @Override
   public void setInput(int inputIndex, boolean state) throws InvalidInputException {
+    // Recieves 1 input
     if (inputIndex != 0) {
       throw new InvalidInputException(getName(), inputIndex, 1);
     }
     inputA = state;
+    update(); // Propogate signal
   }
 }

@@ -1,0 +1,57 @@
+package uk.ac.cam.jml229.logic.components;
+
+import java.util.ArrayList;
+
+public class Wire {
+  private boolean signal;
+  private Component source;
+  private ArrayList<PortConnection> destinations = new ArrayList<>();
+
+  public Wire(Component source) {
+    this.source = source;
+
+    if (source != null) {
+      source.setOutputWire(this);
+    }
+  }
+
+  private static class PortConnection {
+    Component component;
+    int inputIndex;
+
+    PortConnection(Component c, int i) {
+      component = c;
+      inputIndex = i;
+    }
+  }
+
+  public boolean getSignal() {
+    return signal;
+  }
+
+  public void setSignal(boolean newSignal) {
+    if (signal == newSignal) {
+      return;
+    }
+    signal = newSignal;
+    for (PortConnection pc : destinations) {
+      pc.component.setInput(pc.inputIndex, signal);
+    }
+  }
+
+  public void setSource(Component c) {
+    source = c;
+  }
+
+  public Component getSource() {
+    return source;
+  }
+
+  public void addDestination(Component c, int inputIndex) {
+    destinations.add(new PortConnection(c, inputIndex));
+  }
+
+  public void removeDestination(Component c, int inputIndex) {
+    destinations.removeIf(connection -> connection.component == c && connection.inputIndex == inputIndex);
+  }
+}

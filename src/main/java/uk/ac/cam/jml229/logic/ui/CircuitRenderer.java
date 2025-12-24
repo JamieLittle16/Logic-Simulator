@@ -14,12 +14,13 @@ public class CircuitRenderer {
   private static final int GRID_SIZE = 20;
   public static final int PIN_SIZE = 8;
 
-  private static final Color GRID_COLOR = new Color(230, 230, 230);
-  private static final Color SELECTION_BORDER = new Color(0, 200, 255);
-  private static final Color SELECTION_FILL = new Color(0, 200, 255, 50);
-  private static final Color PIN_COLOR = Color.DARK_GRAY;
-  private static final Color WIRE_OFF = new Color(80, 80, 80);
-  private static final Color WIRE_ON = new Color(255, 60, 60);
+  private static final Color GRID_COLOR = new Color(235, 235, 235); // Softer grid
+  private static final Color SELECTION_BORDER = new Color(0, 180, 255);
+  private static final Color SELECTION_FILL = new Color(0, 180, 255, 40);
+  private static final Color PIN_COLOR = new Color(50, 50, 50);
+  private static final Color STUB_COLOR = new Color(0, 0, 0);
+  private static final Color WIRE_OFF = new Color(100, 100, 100);
+  private static final Color WIRE_ON = new Color(230, 50, 50);
 
   // --- Shared Types ---
   public record Pin(Component component, int index, boolean isInput, Point location) {
@@ -55,12 +56,12 @@ public class CircuitRenderer {
     drawDragLine(g2, dragStartPin, dragCurrentPoint);
     drawSelectionBox(g2, selectionRect);
 
+    // Draw Ghost
     if (ghostComponent != null) {
       Composite originalComposite = g2.getComposite();
-      g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
-      // Don't draw label for ghost to keep it clean
+      g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
       drawComponentBody(g2, ghostComponent, false, false);
-      drawPins(g2, ghostComponent);
+      drawPins(g2, ghostComponent); // Draw pins for ghost too so we see alignment
       g2.setComposite(originalComposite);
     }
   }
@@ -94,7 +95,7 @@ public class CircuitRenderer {
 
         if (isSelected) {
           g2.setColor(SELECTION_BORDER);
-          g2.setStroke(new BasicStroke(6));
+          g2.setStroke(new BasicStroke(7));
           g2.draw(curve);
           g2.setStroke(new BasicStroke(3));
         }
@@ -107,7 +108,9 @@ public class CircuitRenderer {
   private void drawComponents(Graphics2D g2, List<Component> components, List<Component> selectedComponents) {
     for (Component c : components) {
       boolean isSelected = selectedComponents.contains(c);
-      drawComponentBody(g2, c, isSelected, true); // True = Draw Labels
+      // Draw Stubs (Legs) first so they are behind the body
+      drawComponentStubs(g2, c);
+      drawComponentBody(g2, c, isSelected, true);
       drawPins(g2, c);
     }
   }
@@ -132,16 +135,10 @@ public class CircuitRenderer {
 
   // --- Component Drawing ---
 
-  /**
-   * Draws the main body of the component.
-   * 
-   * @param drawLabel If true, draws the text name above the component.
-   */
   public void drawComponentBody(Graphics2D g2, Component c, boolean sel, boolean drawLabel) {
     int x = c.getX();
     int y = c.getY();
 
-    // Dispatch to specific drawers
     if (c instanceof Switch)
       drawSwitch(g2, (Switch) c, x, y, sel);
     else if (c instanceof OutputProbe)
@@ -155,18 +152,56 @@ public class CircuitRenderer {
     else if (c instanceof NotGate)
       drawNotGate(g2, c, x, y, sel);
     else if (c instanceof NandGate)
-      drawNandGate(g2, c, x, y, sel); // NEW
+      drawNandGate(g2, c, x, y, sel);
     else if (c instanceof NorGate)
-      drawNorGate(g2, c, x, y, sel); // NEW
+      drawNorGate(g2, c, x, y, sel);
     else if (c instanceof BufferGate)
-      drawBufferGate(g2, c, x, y, sel); // NEW
+      drawBufferGate(g2, c, x, y, sel);
     else
       drawGenericBox(g2, c, x, y, sel);
 
     if (drawLabel) {
       g2.setColor(Color.BLACK);
-      g2.setFont(new Font("Arial", Font.BOLD, 10));
-      g2.drawString(c.getName(), x, y - 5);
+      g2.setFont(new Font("Segoe UI", Font.BOLD, 11));
+      // Center text relative to body (width approx 50)
+      FontMetrics fm = g2.getFontMetrics();
+      int tw = fm.stringWidth(c.getName());
+      g2.drawString(c.getName(), x + (50 - tw) / 2, y - 5);
+    }
+  }
+
+  // NEW: Draws the black lines connecting the pin dots to the gate body
+  private void drawComponentStubs(Graphics2D g2, Component c) {
+    if (c instanceof OutputProbe)
+      return; // Probes don't have legs
+
+    g2.setColor(STUB_COLOR);
+    g2.setStroke(new BasicStroke(3));
+
+    int x = c.getX();
+    int y = c.getY();
+
+    // Output Stub (Right side)
+    // Body ends at x+50. Output Pin is at x+60.
+    // For gates with bubbles (NOT, NAND, NOR), the body+bubble ends at ~x+60, so
+    // stub is short/hidden.
+    if (!(c instanceof Switch)) {
+      g2.drawLine(x + 50, y + 20, x + 60, y + 20);
+    } else {
+      // Switch output is on the right
+      g2.drawLine(x + 40, y + 20, x + 60, y + 20);
+    }
+
+    // Input Stubs (Left side)
+    // Pins are at x-10. Body starts at x.
+    int inputCount = getInputCount(c);
+    for (int i = 0; i < inputCount; i++) {
+      Point p = getPinLocation(c, true, i);
+      // Draw line from Pin (x-10) to Body (x)
+      // For OR/XOR, the body curves inward, so we extend slightly past x to x+4 to
+      // meet the curve
+      int endX = (c instanceof OrGate || c instanceof NorGate || c instanceof XorGate) ? x + 5 : x;
+      g2.drawLine(p.x, p.y, endX, p.y);
     }
   }
 
@@ -190,23 +225,28 @@ public class CircuitRenderer {
   // --- Shapes ---
 
   private void drawSwitch(Graphics2D g2, Switch s, int x, int y, boolean sel) {
+    // Updated to look like a toggle switch (Pill shape)
     if (sel) {
       g2.setColor(SELECTION_BORDER);
       g2.setStroke(new BasicStroke(5));
-      g2.drawRoundRect(x, y, 40, 40, 5, 5);
+      g2.drawRoundRect(x, y + 5, 40, 30, 15, 15);
     }
-    g2.setColor(Color.LIGHT_GRAY);
-    g2.fillRoundRect(x, y, 40, 40, 5, 5);
-    g2.setColor(Color.GRAY);
-    g2.setStroke(new BasicStroke(1));
-    g2.drawRoundRect(x, y, 40, 40, 5, 5);
+
+    // Background track
+    g2.setColor(Color.DARK_GRAY);
+    g2.fillRoundRect(x, y + 5, 40, 30, 30, 30);
+
     boolean on = s.getOutputWire() != null && s.getOutputWire().getSignal();
-    Color c = on ? new Color(50, 200, 50) : new Color(200, 50, 50);
-    GradientPaint gp = new GradientPaint(x, y, c.brighter(), x, y + 40, c.darker());
-    g2.setPaint(gp);
-    g2.fillRoundRect(x + 10, on ? y + 5 : y + 20, 20, 15, 2, 2);
+
+    // Toggle Circle
+    int circleX = on ? x + 22 : x + 2;
+    Color c = on ? new Color(100, 255, 100) : new Color(200, 200, 200);
+
+    g2.setColor(c);
+    g2.fillOval(circleX, y + 7, 26, 26);
     g2.setColor(Color.BLACK);
-    g2.drawRoundRect(x + 10, on ? y + 5 : y + 20, 20, 15, 2, 2);
+    g2.setStroke(new BasicStroke(1));
+    g2.drawOval(circleX, y + 7, 26, 26);
   }
 
   private void drawLight(Graphics2D g2, OutputProbe p, int x, int y, boolean sel) {
@@ -216,23 +256,29 @@ public class CircuitRenderer {
       g2.drawOval(x, y, 40, 40);
     }
     boolean on = p.getState();
+
+    Color core = on ? new Color(255, 220, 0) : new Color(50, 50, 50);
+
     if (on) {
-      float[] dist = { 0.0f, 0.8f };
-      Color[] colors = { new Color(255, 255, 200), new Color(255, 200, 0, 0) };
-      RadialGradientPaint glow = new RadialGradientPaint(new Point2D.Float(x + 20, y + 20), 30, dist, colors);
+      // Glow
+      float[] dist = { 0.0f, 0.7f, 1.0f };
+      Color[] colors = { new Color(255, 255, 200, 200), new Color(255, 220, 0, 100), new Color(0, 0, 0, 0) };
+      RadialGradientPaint glow = new RadialGradientPaint(new Point2D.Float(x + 20, y + 20), 35, dist, colors);
       g2.setPaint(glow);
-      g2.fillOval(x - 10, y - 10, 60, 60);
+      g2.fillOval(x - 15, y - 15, 70, 70);
     }
-    Color core = on ? Color.YELLOW : new Color(60, 60, 60);
-    Color rim = on ? Color.ORANGE : Color.BLACK;
-    GradientPaint gp = new GradientPaint(x, y, core.brighter(), x + 20, y + 20, core.darker());
+
+    GradientPaint gp = new GradientPaint(x, y, core.brighter(), x + 30, y + 30, core.darker());
     g2.setPaint(gp);
     g2.fillOval(x, y, 40, 40);
-    g2.setColor(rim);
+
+    g2.setColor(Color.BLACK);
     g2.setStroke(new BasicStroke(2));
     g2.drawOval(x, y, 40, 40);
+
+    // Shine
     g2.setColor(new Color(255, 255, 255, 100));
-    g2.fillOval(x + 10, y + 5, 15, 10);
+    g2.fillOval(x + 10, y + 8, 12, 8);
   }
 
   private void drawGenericBox(Graphics2D g2, Component c, int x, int y, boolean sel) {
@@ -253,8 +299,8 @@ public class CircuitRenderer {
   private void drawAndGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
     Path2D p = new Path2D.Double();
     p.moveTo(x, y);
-    p.lineTo(x + 20, y);
-    p.curveTo(x + 50, y, x + 50, y + 40, x + 20, y + 40);
+    p.lineTo(x + 25, y);
+    p.curveTo(x + 50, y, x + 50, y + 40, x + 25, y + 40);
     p.lineTo(x, y + 40);
     p.closePath();
     fillGate(g2, p, sel);
@@ -263,7 +309,7 @@ public class CircuitRenderer {
   private void drawOrGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
     Path2D p = new Path2D.Double();
     p.moveTo(x, y);
-    p.quadTo(x + 15, y + 20, x, y + 40);
+    p.quadTo(x + 15, y + 20, x, y + 40); // Concave back
     p.quadTo(x + 35, y + 40, x + 50, y + 20);
     p.quadTo(x + 35, y, x, y);
     p.closePath();
@@ -271,9 +317,10 @@ public class CircuitRenderer {
   }
 
   private void drawXorGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
+    // Shield line
     Path2D b = new Path2D.Double();
-    b.moveTo(x - 5, y);
-    b.quadTo(x + 10, y + 20, x - 5, y + 40);
+    b.moveTo(x - 4, y);
+    b.quadTo(x + 11, y + 20, x - 4, y + 40);
     if (sel) {
       g2.setColor(SELECTION_BORDER);
       g2.setStroke(new BasicStroke(5));
@@ -290,25 +337,25 @@ public class CircuitRenderer {
   private void drawBufferGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
     Path2D p = new Path2D.Double();
     p.moveTo(x, y);
-    p.lineTo(x + 35, y + 20);
+    p.lineTo(x + 40, y + 20);
     p.lineTo(x, y + 40);
     p.closePath();
     fillGate(g2, p, sel);
   }
 
   private void drawNotGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
-    drawBufferGate(g2, c, x, y, sel); // Draw Triangle
-    drawBubble(g2, x + 32, y + 15, sel); // Add Bubble
+    drawBufferGate(g2, c, x, y, sel);
+    drawBubble(g2, x + 40, y + 15, sel); // Tip of triangle is at x+40
   }
 
   private void drawNandGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
     drawAndGate(g2, c, x, y, sel);
-    drawBubble(g2, x + 48, y + 15, sel); // Adjusted position for curve tip
+    drawBubble(g2, x + 50, y + 15, sel); // AND tip is at x+50
   }
 
   private void drawNorGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
     drawOrGate(g2, c, x, y, sel);
-    drawBubble(g2, x + 48, y + 15, sel);
+    drawBubble(g2, x + 50, y + 15, sel); // OR tip is at x+50
   }
 
   // --- Helpers ---
@@ -319,7 +366,7 @@ public class CircuitRenderer {
       g2.setStroke(new BasicStroke(5));
       g2.draw(p);
     }
-    GradientPaint gp = new GradientPaint(0, 0, new Color(60, 100, 180), 0, 40, new Color(100, 140, 220));
+    GradientPaint gp = new GradientPaint(0, 0, new Color(70, 120, 200), 0, 40, new Color(120, 160, 240));
     g2.setPaint(gp);
     g2.fill(p);
     g2.setColor(Color.BLACK);
@@ -350,14 +397,17 @@ public class CircuitRenderer {
   }
 
   public Point getPinLocation(Component c, boolean isInput, int index) {
+    // REVISED PIN LOCATIONS
     if (!isInput) {
-      return new Point(c.getX() + 50, c.getY() + 20);
+      // Output is at x+60 to leave room for stub/bubble
+      return new Point(c.getX() + 60, c.getY() + 20);
     } else {
+      // Inputs are at x-10 to leave room for stub
       int count = getInputCount(c);
       if (count == 1)
-        return new Point(c.getX(), c.getY() + 20);
+        return new Point(c.getX() - 10, c.getY() + 20);
       else
-        return new Point(c.getX(), c.getY() + 10 + (index * 20));
+        return new Point(c.getX() - 10, c.getY() + 10 + (index * 20));
     }
   }
 

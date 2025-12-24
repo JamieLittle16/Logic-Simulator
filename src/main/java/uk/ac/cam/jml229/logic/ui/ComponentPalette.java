@@ -17,7 +17,7 @@ public class ComponentPalette extends JPanel {
     this.renderer = renderer;
 
     setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-    setBackground(new Color(240, 240, 240));
+    setBackground(new Color(245, 245, 245));
 
     addLabel("IO / Probes");
     addTool(new Switch("Switch"));
@@ -37,20 +37,42 @@ public class ComponentPalette extends JPanel {
 
   private void addLabel(String text) {
     JLabel label = new JLabel(text);
-    label.setFont(new Font("Arial", Font.BOLD, 12));
-    label.setBorder(BorderFactory.createEmptyBorder(10, 0, 5, 0));
+    label.setFont(new Font("Segoe UI", Font.BOLD, 12));
+    label.setForeground(Color.GRAY);
+    label.setBorder(BorderFactory.createEmptyBorder(15, 0, 5, 0));
     label.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
     add(label);
   }
 
   private void addTool(Component prototype) {
+    // Custom Rounded Button Panel
     JPanel button = new JPanel() {
+      private boolean hovered = false;
+
+      @Override
+      public void setBackground(Color bg) {
+        super.setBackground(bg);
+        repaint();
+      }
+
       @Override
       protected void paintComponent(Graphics g) {
-        super.paintComponent(g); // Fix: Paints background!
         Graphics2D g2 = (Graphics2D) g;
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Center the component
+        // 1. Draw Background (Rounded)
+        g2.setColor(getBackground());
+        g2.fillRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 15, 15);
+
+        // 2. Draw Border
+        if (getBackground().equals(Color.WHITE) || getBackground().getGreen() > 240) {
+          g2.setColor(new Color(200, 200, 200));
+        } else {
+          g2.setColor(new Color(100, 150, 255)); // Hover border
+        }
+        g2.drawRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 15, 15);
+
+        // 3. Draw Component Icon
         int offsetX = (getWidth() - 50) / 2;
         int offsetY = (getHeight() - 40) / 2;
 
@@ -58,7 +80,6 @@ public class ComponentPalette extends JPanel {
         int oldY = prototype.getY();
         prototype.setPosition(offsetX, offsetY);
 
-        // Draw icon WITHOUT label
         renderer.drawComponentBody(g2, prototype, false, false);
 
         prototype.setPosition(oldX, oldY);
@@ -68,7 +89,7 @@ public class ComponentPalette extends JPanel {
     button.setPreferredSize(new Dimension(100, 60));
     button.setMaximumSize(new Dimension(100, 60));
     button.setBackground(Color.WHITE);
-    button.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+    button.setOpaque(false); // Important for round corners
     button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
     button.addMouseListener(new MouseAdapter() {
@@ -80,20 +101,18 @@ public class ComponentPalette extends JPanel {
 
       @Override
       public void mouseEntered(MouseEvent e) {
-        button.setBackground(new Color(230, 240, 255));
-        button.repaint();
+        button.setBackground(new Color(235, 245, 255));
       }
 
       @Override
       public void mouseExited(MouseEvent e) {
         button.setBackground(Color.WHITE);
-        button.repaint();
       }
     });
 
     button.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
     add(button);
-    add(Box.createRigidArea(new Dimension(0, 5)));
+    add(Box.createRigidArea(new Dimension(0, 8)));
   }
 
   private Component createNewInstance(Component prototype) {

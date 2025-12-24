@@ -15,9 +15,9 @@ public class Wire {
     }
   }
 
-  private static class PortConnection {
-    Component component;
-    int inputIndex;
+  public static class PortConnection {
+    public Component component;
+    public int inputIndex;
 
     PortConnection(Component c, int i) {
       component = c;
@@ -55,5 +55,9 @@ public class Wire {
 
   public void removeDestination(Component c, int inputIndex) {
     destinations.removeIf(connection -> connection.component == c && connection.inputIndex == inputIndex);
+  }
+
+  public ArrayList<PortConnection> getDestinations() {
+    return destinations;
   }
 }

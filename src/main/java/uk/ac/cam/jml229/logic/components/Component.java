@@ -41,6 +41,10 @@ public abstract class Component {
     return y;
   }
 
+  public boolean getState() {
+    return state;
+  }
+
   // Updates its own state, and triggers update in the output wire
   public void update() {
     updateLogic();

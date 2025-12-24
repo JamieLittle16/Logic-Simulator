@@ -17,15 +17,16 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   private final Circuit circuit;
   private final CircuitPanel panel;
-  private final CircuitRenderer renderer; // We need this for hit-testing (getPinLocation)
+  private final CircuitRenderer renderer;
 
-  // --- Interaction State (Moved from Panel) ---
+  // --- Interaction State ---
   private final List<Component> selectedComponents = new ArrayList<>();
   private WireSegment selectedWireSegment = null;
 
   // Dragging
   private Point lastMousePt;
   private boolean isDraggingItems = false;
+  private boolean isMouseInsidePanel = false;
 
   // Selection Box
   private Rectangle selectionRect;
@@ -44,7 +45,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     this.renderer = renderer;
   }
 
-  // --- Accessors (So the Renderer knows what to draw) ---
+  // --- Accessors ---
   public List<Component> getSelectedComponents() {
     return selectedComponents;
   }
@@ -65,8 +66,10 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     return selectionRect;
   }
 
+  // NEW: Only return the ghost component if the mouse is actually inside the
+  // panel
   public Component getComponentToPlace() {
-    return componentToPlace;
+    return isMouseInsidePanel ? componentToPlace : null;
   }
 
   public void startPlacing(Component c) {
@@ -93,22 +96,17 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   }
 
   // --- Logic: Mouse Handling ---
-  @Override
-  public void mouseMoved(MouseEvent e) {
-    // 1. Handle Placing (Ghost follows mouse)
-    if (componentToPlace != null) {
-      // Snap to grid (Optional but recommended)
-      int gridX = Math.round(e.getX() / 20.0f) * 20;
-      int gridY = Math.round(e.getY() / 20.0f) * 20;
-      componentToPlace.setPosition(gridX, gridY);
-      panel.repaint();
-      return;
-    }
 
-    // 2. Standard Hover Cursor (Hand icon if over a component)
-    Component c = getLogicComponentAt(e.getPoint());
-    panel.setCursor(c != null ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-        : Cursor.getDefaultCursor());
+  @Override
+  public void mouseEntered(MouseEvent e) {
+    isMouseInsidePanel = true;
+    panel.repaint();
+  }
+
+  @Override
+  public void mouseExited(MouseEvent e) {
+    isMouseInsidePanel = false;
+    panel.repaint();
   }
 
   @Override
@@ -124,16 +122,11 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
     if (componentToPlace != null) {
       circuit.addComponent(componentToPlace);
-
-      // Prepare a fresh instance of the same type for the next click (Stamp mode)
-      // Or set to null to stop placing. Let's stop placing for now.
       componentToPlace = null;
-
       panel.repaint();
       return;
     }
 
-    // 1. Check Pins (Wiring)
     Pin clickedPin = getPinAt(e.getPoint());
     if (clickedPin != null && !clickedPin.isInput()) {
       dragStartPin = clickedPin;
@@ -143,7 +136,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     }
 
-    // 2. Check Wires (Selection)
     WireSegment clickedWire = getWireAt(e.getPoint());
     if (clickedWire != null) {
       selectedWireSegment = clickedWire;
@@ -154,7 +146,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       selectedWireSegment = null;
     }
 
-    // 3. Check Components (Selection/Move)
     Component clickedComp = getLogicComponentAt(e.getPoint());
     if (clickedComp != null) {
       handleComponentSelection(e, clickedComp);
@@ -162,6 +153,21 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       startSelectionBox(e);
     }
     panel.repaint();
+  }
+
+  @Override
+  public void mouseMoved(MouseEvent e) {
+    if (componentToPlace != null) {
+      int gridX = Math.round(e.getX() / 20.0f) * 20;
+      int gridY = Math.round(e.getY() / 20.0f) * 20;
+      componentToPlace.setPosition(gridX, gridY);
+      panel.repaint();
+      return;
+    }
+
+    Component c = getLogicComponentAt(e.getPoint());
+    panel.setCursor(c != null ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+        : Cursor.getDefaultCursor());
   }
 
   @Override
@@ -211,7 +217,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   @Override
   public void mouseClicked(MouseEvent e) {
-    if (dragStartPin == null && !isDraggingItems) {
+    if (dragStartPin == null && !isDraggingItems && componentToPlace == null) {
       Component c = getLogicComponentAt(e.getPoint());
       if (c instanceof Switch) {
         ((Switch) c).toggle(!((Switch) c).getState());
@@ -236,7 +242,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   public void keyReleased(KeyEvent e) {
   }
 
-  // --- Helpers (Moved from Panel) ---
+  // --- Helpers ---
 
   private void handleComponentSelection(MouseEvent e, Component clickedComp) {
     if (e.isShiftDown()) {
@@ -278,7 +284,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     selectionRect = null;
   }
 
-  // --- Hit Testing (Using Model + Renderer) ---
+  // --- Hit Testing ---
 
   private Pin getPinAt(Point p) {
     int threshold = CircuitRenderer.PIN_SIZE + 4;

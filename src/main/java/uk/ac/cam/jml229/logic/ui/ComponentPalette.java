@@ -5,7 +5,7 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import uk.ac.cam.jml229.logic.components.*;
-import uk.ac.cam.jml229.logic.components.Component; // Explicit import
+import uk.ac.cam.jml229.logic.components.Component;
 
 public class ComponentPalette extends JPanel {
 
@@ -17,88 +17,85 @@ public class ComponentPalette extends JPanel {
     this.renderer = renderer;
 
     setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-    setPreferredSize(new Dimension(100, 0));
-    setBackground(Color.LIGHT_GRAY);
-    setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+    setBackground(new Color(240, 240, 240));
 
-    // Add Tools
-    addLabel("Inputs");
+    addLabel("IO / Probes");
     addTool(new Switch("Switch"));
-
-    addLabel("Outputs");
     addTool(new OutputProbe("Light"));
 
-    addLabel("Gates");
+    addLabel("Basic Gates");
     addTool(new AndGate("AND"));
     addTool(new OrGate("OR"));
     addTool(new NotGate("NOT"));
+
+    addLabel("Advanced");
+    addTool(new NandGate("NAND"));
+    addTool(new NorGate("NOR"));
     addTool(new XorGate("XOR"));
+    addTool(new BufferGate("BUFF"));
   }
 
   private void addLabel(String text) {
     JLabel label = new JLabel(text);
     label.setFont(new Font("Arial", Font.BOLD, 12));
     label.setBorder(BorderFactory.createEmptyBorder(10, 0, 5, 0));
+    label.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
     add(label);
   }
 
   private void addTool(Component prototype) {
-    // Create a custom button that draws the component
     JPanel button = new JPanel() {
       @Override
       protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
+        super.paintComponent(g); // Fix: Paints background!
         Graphics2D g2 = (Graphics2D) g;
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Center the component visually in the button
-        // We assume standard size 40x40 or 50x40
+        // Center the component
         int offsetX = (getWidth() - 50) / 2;
         int offsetY = (getHeight() - 40) / 2;
 
-        // Temporarily move component to draw it here
         int oldX = prototype.getX();
         int oldY = prototype.getY();
         prototype.setPosition(offsetX, offsetY);
 
-        renderer.drawComponentBody(g2, prototype, false);
-        // We don't draw pins in the icon to keep it clean
+        // Draw icon WITHOUT label
+        renderer.drawComponentBody(g2, prototype, false, false);
 
-        prototype.setPosition(oldX, oldY); // Restore
+        prototype.setPosition(oldX, oldY);
       }
     };
 
-    button.setPreferredSize(new Dimension(80, 60));
-    button.setMaximumSize(new Dimension(80, 60));
+    button.setPreferredSize(new Dimension(100, 60));
+    button.setMaximumSize(new Dimension(100, 60));
     button.setBackground(Color.WHITE);
-    button.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+    button.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
     button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-    // Interaction: Click to pick up
     button.addMouseListener(new MouseAdapter() {
       @Override
       public void mousePressed(MouseEvent e) {
-        // Create a NEW instance of the component logic
         Component newComp = createNewInstance(prototype);
         interaction.startPlacing(newComp);
       }
 
       @Override
       public void mouseEntered(MouseEvent e) {
-        button.setBackground(new Color(230, 240, 255)); // Hover effect
+        button.setBackground(new Color(230, 240, 255));
+        button.repaint();
       }
 
       @Override
       public void mouseExited(MouseEvent e) {
         button.setBackground(Color.WHITE);
+        button.repaint();
       }
     });
 
+    button.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
     add(button);
-    add(Box.createRigidArea(new Dimension(0, 5))); // Spacer
+    add(Box.createRigidArea(new Dimension(0, 5)));
   }
 
-  // Factory method to create new instances based on the prototype type
   private Component createNewInstance(Component prototype) {
     if (prototype instanceof Switch)
       return new Switch("SW");
@@ -112,6 +109,12 @@ public class ComponentPalette extends JPanel {
       return new NotGate("NOT");
     if (prototype instanceof XorGate)
       return new XorGate("XOR");
+    if (prototype instanceof NandGate)
+      return new NandGate("NAND");
+    if (prototype instanceof NorGate)
+      return new NorGate("NOR");
+    if (prototype instanceof BufferGate)
+      return new BufferGate("BUF");
     return null;
   }
 }

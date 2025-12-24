@@ -83,6 +83,12 @@ public class CircuitPanel extends JPanel {
   private void deleteSelection() {
     // 1. Delete Selected Wire Connection
     if (selectedWireSegment != null) {
+      // FIX: Tell the component "Input is OFF" before removing the wire
+      selectedWireSegment.connection.component.setInput(
+          selectedWireSegment.connection.inputIndex,
+          false);
+
+      // Now remove the connection from the wire's list
       selectedWireSegment.wire.removeDestination(
           selectedWireSegment.connection.component,
           selectedWireSegment.connection.inputIndex);
@@ -91,10 +97,22 @@ public class CircuitPanel extends JPanel {
 
     // 2. Delete Selected Components
     if (!selectedComponents.isEmpty()) {
-      // Remove wires starting FROM deleted components
+      // FIX: Handle wires starting FROM deleted components
+      // We must find any components listening to these wires and turn their inputs
+      // OFF
+      for (Wire w : wires) {
+        if (selectedComponents.contains(w.getSource())) {
+          for (Wire.PortConnection pc : w.getDestinations()) {
+            // Reset destination input to false
+            pc.component.setInput(pc.inputIndex, false);
+          }
+        }
+      }
+      // Now safe to remove the wires
       wires.removeIf(w -> selectedComponents.contains(w.getSource()));
 
-      // Remove connections TO deleted components
+      // FIX: Handle wires going TO deleted components
+      // Just clean up the wire's destination list so it doesn't point to a ghost
       for (Wire w : wires) {
         w.getDestinations().removeIf(pc -> selectedComponents.contains(pc.component));
       }
@@ -103,6 +121,7 @@ public class CircuitPanel extends JPanel {
       components.removeAll(selectedComponents);
       selectedComponents.clear();
     }
+
     repaint();
   }
 

@@ -18,15 +18,15 @@ public class ComponentPainter {
     int x = c.getX();
     int y = c.getY();
 
-    // 1. Calculate Center for Rotation
+    // Calculate Center for Rotation
     Dimension dim = getComponentSize(c);
     int cx = x + dim.width / 2;
     int cy = y + dim.height / 2;
 
-    // 2. Apply Rotation
+    // Apply Rotation for the Body
     g2.rotate(Math.toRadians(c.getRotation() * 90), cx, cy);
 
-    // 3. Draw Body (Delegated to specific methods)
+    // Draw Body
     if (c instanceof Switch)
       drawSwitch(g2, (Switch) c, x, y, sel);
     else if (c instanceof OutputProbe)
@@ -48,13 +48,29 @@ public class ComponentPainter {
     else
       drawGenericBox(g2, c, x, y, sel);
 
-    // 4. Draw Label (Unrotated check removed for consistency)
+    // Draw Label (FIXED: Always Horizontal)
     if (drawLabel && !(c instanceof CustomComponent)) {
       g2.setColor(Color.BLACK);
       g2.setFont(new Font(Font.DIALOG, Font.PLAIN, 11));
       FontMetrics fm = g2.getFontMetrics();
-      int tw = fm.stringWidth(c.getName());
-      g2.drawString(c.getName(), x + (50 - tw) / 2, y - 5);
+      String name = c.getName();
+      int tw = fm.stringWidth(name);
+
+      // Calculate where the text *would* be drawn in local coords
+      int textX = x + (50 - tw) / 2;
+      int textY = y - 5;
+
+      // Save current rotated transform
+      AffineTransform rotatedTx = g2.getTransform();
+
+      // Rotate back around the component center to make text upright
+      g2.rotate(Math.toRadians(-c.getRotation() * 90), cx, cy);
+
+      // Calculate position. Since we are now in "World" orientation
+      g2.drawString(name, textX, textY);
+
+      // Restore rotation so subsequent operations (if any) are correct
+      g2.setTransform(rotatedTx);
     }
 
     g2.setTransform(oldTx);
@@ -64,7 +80,7 @@ public class ComponentPainter {
     if (c instanceof OutputProbe)
       return;
 
-    // We need to apply rotation here too because stubs are part of the body
+    // Need to apply rotation here too because stubs are part of the body
     AffineTransform oldTx = g2.getTransform();
     Dimension dim = getComponentSize(c);
     int cx = c.getX() + dim.width / 2;
@@ -110,7 +126,7 @@ public class ComponentPainter {
     g2.fillOval(p.x - PIN_SIZE / 2, p.y - PIN_SIZE / 2, PIN_SIZE, PIN_SIZE);
   }
 
-  // --- MATH: PIN LOCATIONS (ROTATION AWARE) ---
+  // --- MATHS: PIN LOCATIONS (ROTATION AWARE) ---
   public Point getPinLocation(Component c, boolean isInput, int index) {
     int dx, dy;
     if (!isInput) { // Output
@@ -169,7 +185,7 @@ public class ComponentPainter {
     return new Rectangle(c.getX(), c.getY(), w, h);
   }
 
-  // --- Private Drawing Primitives (Moved from CircuitRenderer) ---
+  // --- Private Drawing Primitives ---
 
   private void drawSwitch(Graphics2D g2, Switch s, int x, int y, boolean sel) {
     if (sel) {

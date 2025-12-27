@@ -11,26 +11,23 @@ import uk.ac.cam.jml229.logic.model.Wire;
 
 public class CircuitRenderer {
 
-  // --- Dependencies ---
   private final ComponentPainter componentPainter = new ComponentPainter();
   private final WirePainter wirePainter = new WirePainter();
 
-  // --- Public Constants ---
+  // Public Constants
   public static final int PIN_SIZE = 8;
   public static final int HANDLE_SIZE = 6;
   public static final int HANDLE_HIT_SIZE = 10;
 
-  // --- Internal Constants ---
+  // Internal
   private static final int GRID_SIZE = 20;
   private static final Color GRID_COLOR = new Color(235, 235, 235);
   private static final Color SELECTION_FILL = new Color(0, 180, 255, 40);
   private static final Color SELECTION_BORDER = new Color(0, 180, 255);
   private static final Color HOVER_COLOR = new Color(255, 180, 0);
+  private static final Color WIRE_OFF = new Color(100, 100, 100);
+  private static final Color WIRE_ON = new Color(230, 50, 50);
 
-  // Cached stroke to reduce garbage collection during renders
-  private static final Stroke GRID_STROKE = new BasicStroke(1);
-
-  // --- Shared Types ---
   public record Pin(Component component, int index, boolean isInput, Point location) {
   }
 
@@ -40,7 +37,6 @@ public class CircuitRenderer {
   public record WireSegment(Wire wire, Wire.PortConnection connection) {
   }
 
-  // --- Main Render Method ---
   public void render(Graphics2D g2,
       List<Component> components,
       List<Wire> wires,
@@ -57,78 +53,55 @@ public class CircuitRenderer {
       Rectangle viewBounds) {
 
     setupGraphics(g2);
-
-    // Grid (Optimised)
     drawGrid(g2, viewBounds);
-
-    // Wires
     drawWires(g2, wires, selectedWire, hoveredWire, selectedWaypoint, hoveredWaypoint);
-
-    // Components
     drawComponents(g2, components, selectedComponents, hoveredPin, activePin(hoveredPin, connectionStartPin));
 
-    // Wiring Line (Ghost)
     if (connectionStartPin != null && currentMousePoint != null) {
-      drawWiringGhost(g2, connectionStartPin, currentMousePoint);
+      g2.setColor(Color.BLACK);
+      g2.setStroke(new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10, new float[] { 5 }, 0));
+      g2.drawLine(connectionStartPin.location().x, connectionStartPin.location().y, currentMousePoint.x,
+          currentMousePoint.y);
+      g2.setColor(HOVER_COLOR);
+      g2.fillOval(currentMousePoint.x - 4, currentMousePoint.y - 4, 8, 8);
     }
 
-    // Selection Box
     drawSelectionBox(g2, selectionRect);
 
-    // Ghost Component (Placement)
     if (ghostComponent != null) {
-      drawGhostComponent(g2, ghostComponent);
+      Composite originalComposite = g2.getComposite();
+      g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
+      // Delegate drawing
+      componentPainter.drawComponent(g2, ghostComponent, false, false);
+      componentPainter.drawStubs(g2, ghostComponent);
+      g2.setComposite(originalComposite);
     }
   }
 
-  // --- Helper Methods ---
-
   private void setupGraphics(Graphics2D g2) {
-    // Enable Anti-Aliasing for smooth wires/shapes
     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
     g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-
-    // OPTIMISATION: Use Speed over Quality for rendering
-    g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
-
-    // OPTIMISATION: Use Default or Normalize for strokes. 'PURE' is very slow on
-    // high-res.
-    g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_DEFAULT);
-
-    // Disable expensive fractional metrics unless strictly needed for text
-    // alignment
-    g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_OFF);
+    g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_DEFAULT); // Default for
+                                                                                                 // performance
   }
 
   private Pin activePin(Pin hovered, Pin start) {
     return (start != null) ? start : hovered;
   }
 
-  // --- Drawing Layers ---
-
   private void drawGrid(Graphics2D g2, Rectangle bounds) {
     if (bounds == null)
       return;
-
-    // OPTIMISATION: Disable Anti-Aliasing for the grid lines.
-    // Vertical/Horizontal lines look sharper and draw much faster without AA.
     Object oldAA = g2.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-
     g2.setColor(GRID_COLOR);
-    g2.setStroke(GRID_STROKE);
-
+    g2.setStroke(new BasicStroke(1));
     int startX = (int) (Math.floor(bounds.x / (double) GRID_SIZE) * GRID_SIZE);
     int startY = (int) (Math.floor(bounds.y / (double) GRID_SIZE) * GRID_SIZE);
-
-    // Only draw lines visible within the bounds
     for (int x = startX; x < bounds.x + bounds.width + GRID_SIZE; x += GRID_SIZE)
       g2.drawLine(x, bounds.y, x, bounds.y + bounds.height);
-
     for (int y = startY; y < bounds.y + bounds.height + GRID_SIZE; y += GRID_SIZE)
       g2.drawLine(bounds.x, y, bounds.x + bounds.width, y);
-
-    // Restore AA for subsequent layers (Wires/Components)
     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, oldAA);
   }
 
@@ -136,12 +109,10 @@ public class CircuitRenderer {
       WireSegment selectedWire, WireSegment hoveredWire,
       WaypointRef selectedWaypoint, WaypointRef hoveredWaypoint) {
     g2.setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-
     for (Wire w : wires) {
       Component source = w.getSource();
       if (source == null)
         continue;
-
       int sourceIndex = 0;
       for (int i = 0; i < source.getOutputCount(); i++) {
         if (source.getOutputWire(i) == w) {
@@ -179,9 +150,12 @@ public class CircuitRenderer {
     for (Component c : components) {
       boolean isSelected = selectedComponents.contains(c);
 
+      // Delegation!
       componentPainter.drawStubs(g2, c);
       componentPainter.drawComponent(g2, c, isSelected, true);
 
+      // Delegation for pin drawing (loops logic remains here, primitive drawing is
+      // delegated)
       if (!(c instanceof OutputProbe)) {
         int outCount = c.getOutputCount();
         for (int i = 0; i < outCount; i++) {
@@ -203,14 +177,6 @@ public class CircuitRenderer {
     }
   }
 
-  private void drawWiringGhost(Graphics2D g2, Pin startPin, Point mouse) {
-    g2.setColor(Color.BLACK);
-    g2.setStroke(new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10, new float[] { 5 }, 0));
-    g2.drawLine(startPin.location().x, startPin.location().y, mouse.x, mouse.y);
-    g2.setColor(HOVER_COLOR);
-    g2.fillOval(mouse.x - 4, mouse.y - 4, 8, 8);
-  }
-
   private void drawSelectionBox(Graphics2D g2, Rectangle rect) {
     if (rect != null) {
       g2.setColor(SELECTION_FILL);
@@ -219,14 +185,6 @@ public class CircuitRenderer {
       g2.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[] { 9 }, 0));
       g2.draw(rect);
     }
-  }
-
-  private void drawGhostComponent(Graphics2D g2, Component ghost) {
-    Composite originalComposite = g2.getComposite();
-    g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
-    componentPainter.drawComponent(g2, ghost, false, false);
-    componentPainter.drawStubs(g2, ghost);
-    g2.setComposite(originalComposite);
   }
 
   // --- Proxies ---
@@ -244,5 +202,9 @@ public class CircuitRenderer {
 
   public void drawComponentBody(Graphics2D g2, Component c, boolean sel, boolean label) {
     componentPainter.drawComponent(g2, c, sel, label);
+  }
+
+  public Rectangle getComponentBounds(Component c) {
+    return componentPainter.getComponentBounds(c);
   }
 }

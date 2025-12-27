@@ -11,6 +11,9 @@ public abstract class Component {
   private String name;
   private int x, y;
 
+  // 0 = East (Default), 1 = South, 2 = West, 3 = North
+  private int rotation = 0;
+
   // Dynamic Inputs and Outputs ---
   private final List<Wire> outputWires = new ArrayList<>();
   private final List<Boolean> inputs = new ArrayList<>();
@@ -22,6 +25,17 @@ public abstract class Component {
     this.name = name;
   }
 
+  public void rotate() {
+    rotation = (rotation + 1) % 4;
+  }
+
+  public int getRotation() {
+    return rotation;
+  }
+
+  public void setRotation(int r) {
+    this.rotation = r;
+  }
   // ==========================================
   // INPUT MANAGEMENT
   // ==========================================

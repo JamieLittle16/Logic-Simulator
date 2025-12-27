@@ -186,6 +186,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     if (hoveredPin != null || hoveredWire != null || hoveredWaypoint != null) {
       panel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     } else {
+      // Logic moved to HitTester
       Component c = hitTester.findComponentAt(worldPt);
       panel.setCursor(c != null ? Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR)
           : Cursor.getDefaultCursor());
@@ -431,6 +432,19 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       connectionStartPin = null;
       componentToPlace = null;
       panel.repaint();
+    }
+
+    // ROTATION LOGIC
+    if (e.getKeyCode() == KeyEvent.VK_R) {
+      if (componentToPlace != null) {
+        componentToPlace.rotate();
+        panel.repaint();
+      } else if (!selectedComponents.isEmpty()) {
+        for (Component c : selectedComponents) {
+          c.rotate();
+        }
+        panel.repaint();
+      }
     }
   }
 

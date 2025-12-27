@@ -89,16 +89,16 @@ public class CircuitHitTester {
 
   public Component findComponentAt(Point p) {
     List<Component> comps = circuit.getComponents();
+    // Iterate in reverse order (Top-most component first)
     for (int i = comps.size() - 1; i >= 0; i--) {
       Component c = comps.get(i);
-      int inputCount = renderer.getInputCount(c);
-      int outputCount = c.getOutputCount();
-      int maxPins = Math.max(inputCount, outputCount);
-      int h = Math.max(40, maxPins * 20);
-      int w = 50;
 
-      if (p.x >= c.getX() && p.x <= c.getX() + w && p.y >= c.getY() && p.y <= c.getY() + h)
+      // Get the precise, rotated bounds from the renderer/painter
+      Rectangle bounds = renderer.getComponentBounds(c);
+
+      if (bounds.contains(p)) {
         return c;
+      }
     }
     return null;
   }

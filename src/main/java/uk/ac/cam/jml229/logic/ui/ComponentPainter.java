@@ -7,85 +7,95 @@ import uk.ac.cam.jml229.logic.components.Component;
 
 public class ComponentPainter {
 
-  // Styling
-  private static final Color PIN_COLOR = new Color(50, 50, 50);
-  private static final Color STUB_COLOR = new Color(0, 0, 0);
   private static final Color SELECTION_BORDER = new Color(0, 180, 255);
-  private static final Color HOVER_COLOR = new Color(255, 180, 0);
+  private static final Color STUB_COLOR = new Color(0, 0, 0);
   private static final int PIN_SIZE = 8;
+  private static final Color HOVER_COLOR = new Color(255, 180, 0);
+  private static final Color PIN_COLOR = new Color(50, 50, 50);
 
-  public void drawComponent(Graphics2D g2, Component c, boolean isSelected, boolean showLabel) {
+  public void drawComponent(Graphics2D g2, Component c, boolean sel, boolean drawLabel) {
+    AffineTransform oldTx = g2.getTransform();
     int x = c.getX();
     int y = c.getY();
 
-    // Draw the body
-    if (c instanceof Switch)
-      drawSwitch(g2, (Switch) c, x, y, isSelected);
-    else if (c instanceof OutputProbe)
-      drawLight(g2, (OutputProbe) c, x, y, isSelected);
-    else if (c instanceof AndGate)
-      drawAndGate(g2, c, x, y, isSelected);
-    else if (c instanceof OrGate)
-      drawOrGate(g2, c, x, y, isSelected);
-    else if (c instanceof XorGate)
-      drawXorGate(g2, c, x, y, isSelected);
-    else if (c instanceof NotGate)
-      drawNotGate(g2, c, x, y, isSelected);
-    else if (c instanceof NandGate)
-      drawNandGate(g2, c, x, y, isSelected);
-    else if (c instanceof NorGate)
-      drawNorGate(g2, c, x, y, isSelected);
-    else if (c instanceof BufferGate)
-      drawBufferGate(g2, c, x, y, isSelected);
-    else
-      drawGenericBox(g2, c, x, y, isSelected);
+    // 1. Calculate Center for Rotation
+    Dimension dim = getComponentSize(c);
+    int cx = x + dim.width / 2;
+    int cy = y + dim.height / 2;
 
-    // Draw Label (Generic text below component)
-    if (showLabel && !(c instanceof CustomComponent)) {
+    // 2. Apply Rotation
+    g2.rotate(Math.toRadians(c.getRotation() * 90), cx, cy);
+
+    // 3. Draw Body (Delegated to specific methods)
+    if (c instanceof Switch)
+      drawSwitch(g2, (Switch) c, x, y, sel);
+    else if (c instanceof OutputProbe)
+      drawLight(g2, (OutputProbe) c, x, y, sel);
+    else if (c instanceof AndGate)
+      drawAndGate(g2, c, x, y, sel);
+    else if (c instanceof OrGate)
+      drawOrGate(g2, c, x, y, sel);
+    else if (c instanceof XorGate)
+      drawXorGate(g2, c, x, y, sel);
+    else if (c instanceof NotGate)
+      drawNotGate(g2, c, x, y, sel);
+    else if (c instanceof NandGate)
+      drawNandGate(g2, c, x, y, sel);
+    else if (c instanceof NorGate)
+      drawNorGate(g2, c, x, y, sel);
+    else if (c instanceof BufferGate)
+      drawBufferGate(g2, c, x, y, sel);
+    else
+      drawGenericBox(g2, c, x, y, sel);
+
+    // 4. Draw Label (Unrotated check removed for consistency)
+    if (drawLabel && !(c instanceof CustomComponent)) {
       g2.setColor(Color.BLACK);
       g2.setFont(new Font(Font.DIALOG, Font.PLAIN, 11));
       FontMetrics fm = g2.getFontMetrics();
       int tw = fm.stringWidth(c.getName());
       g2.drawString(c.getName(), x + (50 - tw) / 2, y - 5);
     }
+
+    g2.setTransform(oldTx);
   }
 
   public void drawStubs(Graphics2D g2, Component c) {
     if (c instanceof OutputProbe)
       return;
+
+    // We need to apply rotation here too because stubs are part of the body
+    AffineTransform oldTx = g2.getTransform();
+    Dimension dim = getComponentSize(c);
+    int cx = c.getX() + dim.width / 2;
+    int cy = c.getY() + dim.height / 2;
+    g2.rotate(Math.toRadians(c.getRotation() * 90), cx, cy);
+
     g2.setColor(STUB_COLOR);
     g2.setStroke(new BasicStroke(3));
-
     int x = c.getX();
+    int y = c.getY();
 
-    // Output Stubs
     int outCount = c.getOutputCount();
     boolean hasBubbleOutput = (c instanceof NandGate || c instanceof NorGate);
     for (int i = 0; i < outCount; i++) {
-      if (outCount == 1) {
-        if (!hasBubbleOutput) {
-          if (c instanceof Switch)
-            g2.drawLine(x + 40, c.getY() + 20, x + 60, c.getY() + 20);
-          else
-            g2.drawLine(x + 50, c.getY() + 20, x + 60, c.getY() + 20);
-        } else {
-          g2.drawLine(x + 55, c.getY() + 20, x + 60, c.getY() + 20);
-        }
-      } else {
-        Point p = getPinLocation(c, false, i);
-        g2.drawLine(x + 50, p.y, p.x, p.y);
-      }
+      int yOffset = (outCount == 1) ? 20 : 10 + (i * 20);
+      int startX = hasBubbleOutput ? 55 : 50;
+      if (c instanceof Switch && outCount == 1)
+        startX = 40;
+      g2.drawLine(x + startX, y + yOffset, x + 60, y + yOffset);
     }
 
-    // Input Stubs
     int inputCount = getInputCount(c);
     for (int i = 0; i < inputCount; i++) {
-      Point p = getPinLocation(c, true, i);
+      int yOffset = (inputCount == 1) ? 20 : 10 + (i * 20);
       int endX = x;
       if (c instanceof OrGate || c instanceof NorGate || c instanceof XorGate)
         endX = x + 8;
-      g2.drawLine(p.x, p.y, endX, p.y);
+      g2.drawLine(x - 10, y + yOffset, endX, y + yOffset);
     }
+
+    g2.setTransform(oldTx);
   }
 
   public void drawPinCircle(Graphics2D g2, Point p, boolean isHovered, boolean isActive) {
@@ -100,22 +110,36 @@ public class ComponentPainter {
     g2.fillOval(p.x - PIN_SIZE / 2, p.y - PIN_SIZE / 2, PIN_SIZE, PIN_SIZE);
   }
 
-  // --- Math / Geometry Helpers ---
-
+  // --- MATH: PIN LOCATIONS (ROTATION AWARE) ---
   public Point getPinLocation(Component c, boolean isInput, int index) {
-    if (!isInput) {
+    int dx, dy;
+    if (!isInput) { // Output
       int outCount = c.getOutputCount();
-      if (outCount <= 1)
-        return new Point(c.getX() + 60, c.getY() + 20);
-      else
-        return new Point(c.getX() + 60, c.getY() + 10 + (index * 20));
-    } else {
-      int count = getInputCount(c);
-      if (count == 1)
-        return new Point(c.getX() - 10, c.getY() + 20);
-      else
-        return new Point(c.getX() - 10, c.getY() + 10 + (index * 20));
+      dx = 60;
+      dy = (outCount <= 1) ? 20 : 10 + (index * 20);
+    } else { // Input
+      int inCount = getInputCount(c);
+      dx = -10;
+      dy = (inCount == 1) ? 20 : 10 + (index * 20);
     }
+
+    Dimension dim = getComponentSize(c);
+    int w = dim.width;
+    int h = dim.height;
+    int cx = w / 2;
+    int cy = h / 2;
+
+    int rx = dx - cx;
+    int ry = dy - cy;
+
+    int rotatedX = rx, rotatedY = ry;
+    for (int i = 0; i < c.getRotation(); i++) {
+      int temp = rotatedX;
+      rotatedX = -rotatedY;
+      rotatedY = temp;
+    }
+
+    return new Point(c.getX() + cx + rotatedX, c.getY() + cy + rotatedY);
   }
 
   public int getInputCount(Component c) {
@@ -126,7 +150,26 @@ public class ComponentPainter {
     return c.getInputCount();
   }
 
-  // --- Private Drawing Primitives ---
+  public Dimension getComponentSize(Component c) {
+    int inputCount = getInputCount(c);
+    int outputCount = c.getOutputCount();
+    int maxPins = Math.max(inputCount, outputCount);
+    int h = Math.max(40, maxPins * 20);
+    int w = 50;
+    return new Dimension(w, h);
+  }
+
+  public Rectangle getComponentBounds(Component c) {
+    Dimension d = getComponentSize(c);
+    int w = d.width;
+    int h = d.height;
+    if (c.getRotation() == 1 || c.getRotation() == 3) {
+      return new Rectangle(c.getX() + (w - h) / 2, c.getY() + (h - w) / 2, h, w);
+    }
+    return new Rectangle(c.getX(), c.getY(), w, h);
+  }
+
+  // --- Private Drawing Primitives (Moved from CircuitRenderer) ---
 
   private void drawSwitch(Graphics2D g2, Switch s, int x, int y, boolean sel) {
     if (sel) {

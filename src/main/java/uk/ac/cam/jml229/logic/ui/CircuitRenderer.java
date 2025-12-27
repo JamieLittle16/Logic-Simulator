@@ -261,7 +261,7 @@ public class CircuitRenderer {
     g2.fillOval(p.x - PIN_SIZE / 2, p.y - PIN_SIZE / 2, PIN_SIZE, PIN_SIZE);
   }
 
-  // --- Shapes (Unchanged) ---
+  // --- Shapes ---
 
   private void drawSwitch(Graphics2D g2, Switch s, int x, int y, boolean sel) {
     if (sel) {
@@ -307,16 +307,22 @@ public class CircuitRenderer {
   }
 
   private void drawGenericBox(Graphics2D g2, Component c, int x, int y, boolean sel) {
+    int inputCount = getInputCount(c);
+    int outputCount = c.getOutputCount();
+    int maxPins = Math.max(inputCount, outputCount);
+    // Standard height is 40. For every pin, we need ~20px space.
+    int h = Math.max(40, maxPins * 20);
+
     if (sel) {
       g2.setColor(SELECTION_BORDER);
       g2.setStroke(new BasicStroke(5));
-      g2.drawRect(x, y, 50, 40);
+      g2.drawRect(x, y, 50, h);
     }
     g2.setColor(Color.LIGHT_GRAY);
-    g2.fillRect(x, y, 50, 40);
+    g2.fillRect(x, y, 50, h);
     g2.setColor(Color.BLACK);
     g2.setStroke(new BasicStroke(2));
-    g2.drawRect(x, y, 50, 40);
+    g2.drawRect(x, y, 50, h);
   }
 
   private void drawAndGate(Graphics2D g2, Component c, int x, int y, boolean sel) {

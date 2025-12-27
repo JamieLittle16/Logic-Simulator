@@ -44,6 +44,20 @@ public class ComponentPalette extends JPanel {
     add(label);
   }
 
+  /**
+   * Adds a newly created Custom Component to the sidebar.
+   */
+  public void addCustomTool(Component prototype) {
+    // Add a separator/label if it's the first custom tool
+    // if (this.getComponentCount() ... ) addLabel("User Chips");
+
+    addTool(prototype);
+
+    // Refresh the UI to show the new button
+    revalidate();
+    repaint();
+  }
+
   private void addTool(Component prototype) {
     JPanel button = new JPanel() {
       @Override
@@ -130,6 +144,9 @@ public class ComponentPalette extends JPanel {
       return new NorGate("NOR");
     if (prototype instanceof BufferGate)
       return new BufferGate("BUF");
+    if (prototype instanceof CustomComponent) {
+      return prototype.makeCopy();
+    }
     return null;
   }
 }

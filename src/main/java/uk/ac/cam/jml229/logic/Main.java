@@ -1,6 +1,7 @@
 package uk.ac.cam.jml229.logic;
 
 import uk.ac.cam.jml229.logic.components.*;
+import uk.ac.cam.jml229.logic.model.Wire;
 
 public class Main {
   public static void main(String[] args) {

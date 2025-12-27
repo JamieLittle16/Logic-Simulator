@@ -3,6 +3,7 @@ package uk.ac.cam.jml229.logic.components;
 import java.util.ArrayList;
 import java.util.List;
 import uk.ac.cam.jml229.logic.model.Circuit;
+import uk.ac.cam.jml229.logic.model.Wire;
 
 public class CustomComponent extends Component {
 
@@ -25,18 +26,28 @@ public class CustomComponent extends Component {
       }
     }
 
+    internalInputs.sort((a, b) -> Integer.compare(a.getY(), b.getY()));
+    internalOutputs.sort((a, b) -> Integer.compare(a.getY(), b.getY()));
+
     // Configure External Pins
     setInputCount(internalInputs.size());
+  }
 
-    // Note: Outputs are dynamic. The Renderer asks getOutputCount(),
-    // which uses the outputWires list size. We need to ensure that list
-    // is big enough.
-    // We don't set wires here (the user does that), but we know we HAVE ports.
+  /**
+   * Override makeCopy to use the correct constructor (Name + Circuit).
+   * The base class uses Reflection to find a (String) constructor, which we don't
+   * have.
+   */
+  @Override
+  public Component makeCopy() {
+    // We pass our 'innerCircuit' as the template.
+    // The constructor will call .cloneCircuit() on it, ensuring the new copy
+    // has its own independent logic.
+    return new CustomComponent(getName(), this.innerCircuit);
   }
 
   @Override
   public int getOutputCount() {
-    // Override to show pins even if wires aren't connected yet
     return Math.max(1, internalOutputs.size());
   }
 

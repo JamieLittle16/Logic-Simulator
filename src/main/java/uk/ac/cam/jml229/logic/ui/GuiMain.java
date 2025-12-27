@@ -18,6 +18,7 @@ public class GuiMain {
       CircuitRenderer renderer = circuitPanel.getRenderer();
 
       ComponentPalette palette = new ComponentPalette(interaction, renderer);
+      interaction.setPalette(palette);
 
       // Add Scroll Pane for Sidebar
       JScrollPane scrollPalette = new JScrollPane(palette);

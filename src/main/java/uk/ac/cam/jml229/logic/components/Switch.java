@@ -1,5 +1,7 @@
 package uk.ac.cam.jml229.logic.components;
 
+import uk.ac.cam.jml229.logic.model.Wire;
+
 public class Switch extends Component {
 
   private boolean state = false; // Internal state (ON/OFF)

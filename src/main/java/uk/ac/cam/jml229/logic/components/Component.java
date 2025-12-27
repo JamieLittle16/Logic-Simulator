@@ -5,6 +5,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import uk.ac.cam.jml229.logic.model.Wire;
+
 public abstract class Component {
   private String name;
   private int x, y;

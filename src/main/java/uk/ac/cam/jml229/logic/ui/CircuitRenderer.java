@@ -7,6 +7,7 @@ import java.util.List;
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.model.Circuit;
+import uk.ac.cam.jml229.logic.model.Wire;
 
 public class CircuitRenderer {
 

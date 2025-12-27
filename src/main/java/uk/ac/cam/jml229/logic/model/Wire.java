@@ -1,6 +1,7 @@
-package uk.ac.cam.jml229.logic.components;
+package uk.ac.cam.jml229.logic.model;
 
 import java.util.ArrayList;
+import uk.ac.cam.jml229.logic.components.Component;
 
 public class Wire {
   private boolean signal;
@@ -9,10 +10,6 @@ public class Wire {
 
   public Wire(Component source) {
     this.source = source;
-    // Updates the input component forming the connection
-    if (source != null) {
-      source.setOutputWire(this);
-    }
   }
 
   public static class PortConnection {

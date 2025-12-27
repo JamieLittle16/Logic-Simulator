@@ -239,7 +239,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
           clickedWire.connection == selectedWireSegment.connection) {
 
         Point newPt = e.getPoint();
-        insertWaypoint(clickedWire.connection, newPt);
+        insertWaypoint(clickedWire, newPt);
         draggedWaypoint = newPt; // Immediately start dragging it
         draggedWaypointList = clickedWire.connection.waypoints;
       } else {
@@ -506,8 +506,56 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     return null;
   }
 
-  private void insertWaypoint(Wire.PortConnection pc, Point clickPt) {
-    pc.waypoints.add(clickPt);
+  private void insertWaypoint(WireSegment ws, Point clickPt) {
+    Wire.PortConnection pc = ws.connection;
+    Wire w = ws.wire;
+    List<Point> waypoints = pc.waypoints;
+
+    // Get Start Point (Source Pin)
+    Component src = w.getSource();
+    int srcIdx = 0;
+    for (int i = 0; i < src.getOutputCount(); i++)
+      if (src.getOutputWire(i) == w)
+        srcIdx = i;
+    Point start = renderer.getPinLocation(src, false, srcIdx);
+
+    // Get End Point (Destination Pin)
+    Point end = renderer.getPinLocation(pc.component, true, pc.inputIndex);
+
+    // Build Full Path List (Start -> W1 -> W2 -> ... -> End)
+    List<Point> fullPath = new ArrayList<>();
+    fullPath.add(start);
+    fullPath.addAll(waypoints);
+    fullPath.add(end);
+
+    // Find which segment was clicked
+    // We iterate through segments 0..(N-1). If hit segment i, we insert at index i.
+    int insertIndex = waypoints.size(); // Default to append if logic fails
+
+    for (int i = 0; i < fullPath.size() - 1; i++) {
+      Point p1 = fullPath.get(i);
+      Point p2 = fullPath.get(i + 1);
+
+      // Recreate the exact curve used by renderer for this segment
+      GeneralPath segmentPath = new GeneralPath();
+      segmentPath.moveTo(p1.x, p1.y);
+      double dist = Math.abs(p2.x - p1.x) * 0.5;
+      segmentPath.curveTo(p1.x + dist, p1.y, p2.x - dist, p2.y, p2.x, p2.y);
+
+      // Hit test with slightly wider stroke for leniency
+      Shape stroked = new BasicStroke(7).createStrokedShape(segmentPath);
+      if (stroked.contains(clickPt)) {
+        insertIndex = i;
+        break;
+      }
+    }
+
+    // Insert
+    if (insertIndex >= 0 && insertIndex <= waypoints.size()) {
+      waypoints.add(insertIndex, clickPt);
+    } else {
+      waypoints.add(clickPt);
+    }
   }
 
   private WireSegment getWireAt(Point p) {

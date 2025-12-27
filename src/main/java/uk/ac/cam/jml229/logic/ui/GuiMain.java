@@ -63,6 +63,7 @@ public class GuiMain {
       // Edit Menu
       JMenu editMenu = new JMenu("Edit");
 
+      // Undo/Redo
       JMenuItem undoItem = new JMenuItem("Undo");
       undoItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_Z, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
@@ -77,6 +78,22 @@ public class GuiMain {
       editMenu.add(redoItem);
       editMenu.addSeparator();
 
+      // Copy/Paste
+      JMenuItem copyItem = new JMenuItem("Copy");
+      copyItem.setAccelerator(
+          KeyStroke.getKeyStroke(KeyEvent.VK_C, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
+      copyItem.addActionListener(e -> circuitPanel.copy());
+
+      JMenuItem pasteItem = new JMenuItem("Paste");
+      pasteItem.setAccelerator(
+          KeyStroke.getKeyStroke(KeyEvent.VK_V, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
+      pasteItem.addActionListener(e -> circuitPanel.paste());
+
+      editMenu.add(copyItem);
+      editMenu.add(pasteItem);
+      editMenu.addSeparator();
+
+      // Rotate
       JMenuItem rotateItem = new JMenuItem("Rotate");
       rotateItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_R, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));

@@ -99,6 +99,14 @@ public class CircuitPanel extends JPanel {
     interaction.redo();
   }
 
+  public void copy() {
+    interaction.copy();
+  }
+
+  public void paste() {
+    interaction.paste();
+  }
+
   // --- Getters/Setters ---
   public CircuitInteraction getInteraction() {
     return interaction;

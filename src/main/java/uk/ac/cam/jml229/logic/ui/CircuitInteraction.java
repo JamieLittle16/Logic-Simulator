@@ -15,6 +15,7 @@ import uk.ac.cam.jml229.logic.ui.CircuitRenderer.Pin;
 import uk.ac.cam.jml229.logic.ui.CircuitRenderer.WireSegment;
 import uk.ac.cam.jml229.logic.ui.CircuitRenderer.WaypointRef;
 import uk.ac.cam.jml229.logic.io.HistoryManager;
+import uk.ac.cam.jml229.logic.io.StorageManager;
 
 public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
@@ -24,6 +25,9 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   private final CircuitHitTester hitTester;
   private final HistoryManager history = new HistoryManager();
   private ComponentPalette palette;
+
+  // --- Clipboard (static to survive file reload) ---
+  private static String clipboardString = null;
 
   // --- Interaction State ---
   private final List<Component> selectedComponents = new ArrayList<>();
@@ -81,6 +85,62 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   public void resetHistory() {
     history.clear();
     history.pushState(this.circuit);
+  }
+
+  // --- Copy / Paste Logic ---
+
+  public void copy() {
+    if (selectedComponents.isEmpty())
+      return;
+
+    // Create a temporary circuit with JUST the selected items
+    Circuit temp = new Circuit();
+    for (Component c : selectedComponents) {
+      temp.addComponent(c);
+    }
+
+    // 2. Serialize it (StorageManager handles omitting wires that go to
+    // non-selected items)
+    clipboardString = StorageManager.saveToString(temp, null);
+  }
+
+  public void paste() {
+    if (clipboardString == null)
+      return;
+
+    try {
+      // Save state for Undo
+      history.pushState(circuit);
+
+      // Parse the clipboard
+      StorageManager.LoadResult result = StorageManager.loadFromString(clipboardString);
+      Circuit pastedCircuit = result.circuit();
+
+      if (pastedCircuit.getComponents().isEmpty())
+        return;
+
+      // Import any custom tools required by the pasted items
+      if (palette != null) {
+        for (CustomComponent cc : result.customTools()) {
+          palette.addCustomTool(cc);
+        }
+      }
+
+      // Deselect current items
+      selectedComponents.clear();
+
+      // Add new items (Shifted by 20px)
+      for (Component c : pastedCircuit.getComponents()) {
+        c.setPosition(c.getX() + 20, c.getY() + 20);
+        circuit.addComponent(c);
+        selectedComponents.add(c); // Select the new items
+      }
+
+      panel.repaint();
+
+    } catch (Exception e) {
+      System.err.println("Paste failed: " + e.getMessage());
+    }
   }
 
   public void undo() {
@@ -521,6 +581,9 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   private void showContextMenu(int x, int y) {
     JPopupMenu menu = new JPopupMenu();
+    JMenuItem copyItem = new JMenuItem("Copy");
+    copyItem.addActionListener(e -> copy());
+    menu.add(copyItem);
     JMenuItem createItem = new JMenuItem("Create Custom Component");
     createItem.addActionListener(e -> createCustomComponentFromSelection());
     menu.add(createItem);

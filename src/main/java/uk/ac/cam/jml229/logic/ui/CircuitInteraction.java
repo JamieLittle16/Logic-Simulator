@@ -499,13 +499,16 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         panel.repaint();
       }
     }
-    if (e.isControlDown()) {
-      if (e.getKeyCode() == KeyEvent.VK_Z) {
-        undo();
-      } else if (e.getKeyCode() == KeyEvent.VK_Y) {
-        redo();
-      }
-    }
+    /*
+     * Undo/Redo handlef by the menu bar instead
+     * if (e.isControlDown()) {
+     * if (e.getKeyCode() == KeyEvent.VK_Z) {
+     * undo();
+     * } else if (e.getKeyCode() == KeyEvent.VK_Y) {
+     * redo();
+     * }
+     * }
+     */
   }
 
   @Override

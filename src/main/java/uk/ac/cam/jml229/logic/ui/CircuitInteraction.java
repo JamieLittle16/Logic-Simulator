@@ -176,33 +176,40 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     }
 
-    // Left Click
+    // Left Click - Component Placement
     if (componentToPlace != null) {
       circuit.addComponent(componentToPlace);
-
-      // Continous adding with Ctrl
       if (e.isControlDown()) {
         componentToPlace = componentToPlace.makeCopy();
       } else {
         componentToPlace = null;
       }
-
       panel.repaint();
       return;
     }
 
     Pin clickedPin = getPinAt(e.getPoint());
 
-    // Wiring Logic
     if (connectionStartPin != null) {
-      if (clickedPin != null && clickedPin.isInput()) {
-        circuit.addConnection(
-            connectionStartPin.component(),
-            connectionStartPin.index(),
-            clickedPin.component(),
-            clickedPin.index());
+      if (clickedPin != null) {
+        // We need exactly one Input and one Output.
+        // If we clicked the same type (e.g. Input -> Input), it's invalid.
+        if (connectionStartPin.isInput() != clickedPin.isInput()) {
+
+          // Identify which is Source (Output) and which is Dest (Input)
+          Pin sourcePin = connectionStartPin.isInput() ? clickedPin : connectionStartPin;
+          Pin destPin = connectionStartPin.isInput() ? connectionStartPin : clickedPin;
+
+          circuit.addConnection(
+              sourcePin.component(),
+              sourcePin.index(),
+              destPin.component(),
+              destPin.index());
+        }
+        // Whether valid or invalid pair, we stop wiring now.
         connectionStartPin = null;
       } else {
+        // Clicked empty space -> Cancel wiring
         connectionStartPin = null;
       }
       panel.repaint();
@@ -210,11 +217,10 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     }
 
     if (clickedPin != null) {
-      if (!clickedPin.isInput()) {
-        connectionStartPin = clickedPin;
-        selectedComponents.clear();
-        selectedWireSegment = null;
-      }
+      // Allow starting from ANY pin (Input or Output)
+      connectionStartPin = clickedPin;
+      selectedComponents.clear();
+      selectedWireSegment = null;
       panel.repaint();
       return;
     }

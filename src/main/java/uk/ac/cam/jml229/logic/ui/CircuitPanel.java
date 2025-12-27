@@ -58,8 +58,10 @@ public class CircuitPanel extends JPanel {
         interaction.getSelectedWire(),
 
         // Hover State
+        interaction.getSelectedWaypoint(),
         interaction.getHoveredPin(),
         interaction.getHoveredWire(),
+        interaction.getHoveredWaypoint(),
 
         // Wiring State
         interaction.getConnectionStartPin(),

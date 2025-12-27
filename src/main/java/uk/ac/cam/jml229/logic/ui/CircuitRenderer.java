@@ -16,6 +16,7 @@ public class CircuitRenderer {
   private static final int GRID_SIZE = 20;
   public static final int PIN_SIZE = 8;
   public static final int HANDLE_SIZE = 6; // Size of waypoint drag handles
+  public static final int HANDLE_HIT_SIZE = 10; // Highlight size
 
   private static final Color GRID_COLOR = new Color(235, 235, 235);
   private static final Color SELECTION_BORDER = new Color(0, 180, 255);
@@ -27,6 +28,9 @@ public class CircuitRenderer {
   private static final Color WIRE_ON = new Color(230, 50, 50);
 
   public record Pin(Component component, int index, boolean isInput, Point location) {
+  }
+
+  public record WaypointRef(Wire.PortConnection connection, Point point) {
   }
 
   public static class WireSegment {
@@ -44,8 +48,10 @@ public class CircuitRenderer {
       List<Wire> wires,
       List<Component> selectedComponents,
       WireSegment selectedWire,
+      WaypointRef selectedWaypoint,
       Pin hoveredPin,
       WireSegment hoveredWire,
+      WaypointRef hoveredWaypoint,
       Pin connectionStartPin,
       Point currentMousePoint,
       Rectangle selectionRect,
@@ -57,7 +63,7 @@ public class CircuitRenderer {
     g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
     drawGrid(g2, g2.getClipBounds());
-    drawWires(g2, wires, selectedWire, hoveredWire);
+    drawWires(g2, wires, selectedWire, hoveredWire, selectedWaypoint, hoveredWaypoint);
     drawComponents(g2, components, selectedComponents, hoveredPin, connectionStartPin);
 
     if (connectionStartPin != null && currentMousePoint != null) {
@@ -93,14 +99,16 @@ public class CircuitRenderer {
       g2.drawLine(0, y, bounds.width + bounds.x, y);
   }
 
-  private void drawWires(Graphics2D g2, List<Wire> wires, WireSegment selectedWire, WireSegment hoveredWire) {
+  private void drawWires(Graphics2D g2, List<Wire> wires,
+      WireSegment selectedWire, WireSegment hoveredWire,
+      WaypointRef selectedWaypoint, WaypointRef hoveredWaypoint) {
     g2.setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
     for (Wire w : wires) {
       Component source = w.getSource();
       if (source == null)
         continue;
 
-      // Find which output index this wire is connected to
       int sourceIndex = 0;
       for (int i = 0; i < source.getOutputCount(); i++) {
         if (source.getOutputWire(i) == w) {
@@ -108,34 +116,48 @@ public class CircuitRenderer {
           break;
         }
       }
-
-      // Use the correct index (sourceIndex)
       Point p1 = getPinLocation(source, false, sourceIndex);
 
       for (Wire.PortConnection pc : w.getDestinations()) {
         Component dest = pc.component;
         Point p2 = getPinLocation(dest, true, pc.inputIndex);
 
-        boolean isSelected = (selectedWire != null && selectedWire.wire == w && selectedWire.connection == pc);
-        boolean isHovered = (hoveredWire != null && hoveredWire.wire == w && hoveredWire.connection == pc);
+        boolean isWireSelected = (selectedWire != null && selectedWire.wire == w && selectedWire.connection == pc);
+        boolean isWireHovered = (hoveredWire != null && hoveredWire.wire == w && hoveredWire.connection == pc);
 
         Shape path = createWireShape(p1, p2, pc.waypoints);
 
-        if (isSelected || isHovered) {
-          g2.setColor(isSelected ? SELECTION_BORDER : HOVER_COLOR);
+        // Highlight Wire
+        if (isWireSelected || isWireHovered) {
+          g2.setColor(isWireSelected ? SELECTION_BORDER : HOVER_COLOR);
           g2.setStroke(new BasicStroke(6));
           g2.draw(path);
           g2.setStroke(new BasicStroke(3));
         }
 
-        // Draw Waypoint Handles if selected
-        if (isSelected) {
-          g2.setColor(Color.WHITE);
+        // Draw Waypoint Handles
+        // We draw handles if: Wire is Selected OR Wire is Hovered OR a specific
+        // Waypoint is interactable
+        if (isWireSelected || isWireHovered || !pc.waypoints.isEmpty()) {
           for (Point pt : pc.waypoints) {
-            g2.fillRect(pt.x - 3, pt.y - 3, 6, 6);
-            g2.setColor(SELECTION_BORDER);
-            g2.drawRect(pt.x - 3, pt.y - 3, 6, 6);
-            g2.setColor(Color.WHITE); // Reset for next fill
+            boolean isPtSelected = (selectedWaypoint != null && selectedWaypoint.point() == pt);
+            boolean isPtHovered = (hoveredWaypoint != null && hoveredWaypoint.point() == pt);
+
+            if (isPtSelected || isPtHovered) {
+              // Highlighted Handle
+              g2.setColor(isPtSelected ? SELECTION_BORDER : HOVER_COLOR);
+              int s = HANDLE_HIT_SIZE;
+              g2.fillRect(pt.x - s / 2, pt.y - s / 2, s, s);
+              g2.setColor(Color.WHITE);
+              g2.drawRect(pt.x - s / 2, pt.y - s / 2, s, s);
+            } else if (isWireSelected) {
+              // Standard Handle (Only show when wire selected to reduce clutter)
+              g2.setColor(Color.WHITE);
+              int s = HANDLE_SIZE;
+              g2.fillRect(pt.x - s / 2, pt.y - s / 2, s, s);
+              g2.setColor(SELECTION_BORDER);
+              g2.drawRect(pt.x - s / 2, pt.y - s / 2, s, s);
+            }
           }
         }
 

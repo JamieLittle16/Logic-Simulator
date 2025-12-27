@@ -5,6 +5,7 @@ import java.awt.*;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.geom.AffineTransform;
+import java.util.function.Consumer; // For the listener
 import uk.ac.cam.jml229.logic.model.Circuit;
 
 public class CircuitPanel extends JPanel {
@@ -18,6 +19,9 @@ public class CircuitPanel extends JPanel {
   private double panY = 0;
   private double scale = 1.0;
 
+  // Callback for GUI updates (e.g. "100%" label)
+  private Consumer<Double> onZoomChanged;
+
   public CircuitPanel() {
     this.circuit = new Circuit();
     this.renderer = new CircuitRenderer();
@@ -27,13 +31,11 @@ public class CircuitPanel extends JPanel {
     addMouseMotionListener(interaction);
     addKeyListener(interaction);
 
+    // Mouse Wheel Zoom (Zooms to Cursor)
     addMouseWheelListener(e -> {
       double zoomFactor = 1.1;
       double newScale = (e.getWheelRotation() < 0) ? scale * zoomFactor : scale / zoomFactor;
-
-      // Clamp zoom (e.g., between 10% and 500%)
       newScale = Math.max(0.1, Math.min(newScale, 5.0));
-
       setZoom(newScale, e.getPoint());
     });
 
@@ -41,6 +43,46 @@ public class CircuitPanel extends JPanel {
     setBackground(Color.WHITE);
   }
 
+  public void setOnZoomChanged(Consumer<Double> listener) {
+    this.onZoomChanged = listener;
+  }
+
+  // --- Zoom Actions (For Menus/Keyboard) ---
+  public void zoomIn() {
+    // Zoom to Center of Screen
+    Point center = new Point(getWidth() / 2, getHeight() / 2);
+    double newScale = Math.min(scale * 1.25, 5.0); // 25% increments for buttons
+    setZoom(newScale, center);
+  }
+
+  public void zoomOut() {
+    Point center = new Point(getWidth() / 2, getHeight() / 2);
+    double newScale = Math.max(scale / 1.25, 0.1);
+    setZoom(newScale, center);
+  }
+
+  public void resetZoom() {
+    Point center = new Point(getWidth() / 2, getHeight() / 2);
+    setZoom(1.0, center);
+    // Optional: Also reset Pan to 0,0?
+    // this.panX = 0; this.panY = 0; repaint();
+  }
+
+  public void setZoom(double newScale, Point anchor) {
+    double worldX = (anchor.x - panX) / scale;
+    double worldY = (anchor.y - panY) / scale;
+
+    this.scale = newScale;
+
+    this.panX = anchor.x - (worldX * scale);
+    this.panY = anchor.y - (worldY * scale);
+
+    repaint();
+    if (onZoomChanged != null)
+      onZoomChanged.accept(scale);
+  }
+
+  // --- Getters/Setters ---
   public CircuitInteraction getInteraction() {
     return interaction;
   }
@@ -53,7 +95,6 @@ public class CircuitPanel extends JPanel {
     return circuit;
   }
 
-  // --- Viewport Getters ---
   public double getPanX() {
     return panX;
   }
@@ -72,19 +113,6 @@ public class CircuitPanel extends JPanel {
     repaint();
   }
 
-  public void setZoom(double newScale, Point anchor) {
-    double worldX = (anchor.x - panX) / scale;
-    double worldY = (anchor.y - panY) / scale;
-
-    this.scale = newScale;
-
-    // NewPan = ScreenPoint - (WorldPoint * NewScale)
-    this.panX = anchor.x - (worldX * scale);
-    this.panY = anchor.y - (worldY * scale);
-
-    repaint();
-  }
-
   public void setCircuit(Circuit newCircuit) {
     this.circuit = newCircuit;
     this.interaction.setCircuit(newCircuit);
@@ -97,19 +125,13 @@ public class CircuitPanel extends JPanel {
     Graphics2D g2 = (Graphics2D) g;
 
     AffineTransform oldTransform = g2.getTransform();
-
-    // Apply Transform: Translate THEN Scale
     g2.translate(panX, panY);
     g2.scale(scale, scale);
 
-    // Calculate visible world bounds for grid optimization
-    // Visible Screen: (0,0) to (W,H)
-    // World TopLeft = (0 - PanX) / Scale
     double wx = -panX / scale;
     double wy = -panY / scale;
     double ww = getWidth() / scale;
     double wh = getHeight() / scale;
-
     Rectangle visibleWorldBounds = new Rectangle((int) wx, (int) wy, (int) ww + 1, (int) wh + 1);
 
     renderer.render(g2,

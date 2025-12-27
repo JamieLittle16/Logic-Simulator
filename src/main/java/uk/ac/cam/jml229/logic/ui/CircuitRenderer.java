@@ -312,17 +312,38 @@ public class CircuitRenderer {
     int maxPins = Math.max(inputCount, outputCount);
     // Standard height is 40. For every pin, we need ~20px space.
     int h = Math.max(40, maxPins * 20);
+    int w = 50;
 
     if (sel) {
       g2.setColor(SELECTION_BORDER);
       g2.setStroke(new BasicStroke(5));
-      g2.drawRect(x, y, 50, h);
+      g2.drawRect(x, y, w, h);
     }
     g2.setColor(Color.LIGHT_GRAY);
-    g2.fillRect(x, y, 50, h);
+    g2.fillRect(x, y, w, h);
     g2.setColor(Color.BLACK);
     g2.setStroke(new BasicStroke(2));
-    g2.drawRect(x, y, 50, h);
+    g2.drawRect(x, y, w, h);
+
+    g2.setColor(Color.WHITE);
+    // Use a bold, small font for the chip label
+    g2.setFont(new Font("SansSerif", Font.BOLD, 12));
+
+    String name = c.getName();
+    // Safety clip if name is too long for 50px width
+    FontMetrics fm = g2.getFontMetrics();
+    if (fm.stringWidth(name) > 46) {
+      // Simple truncation
+      while (name.length() > 0 && fm.stringWidth(name + "..") > 46) {
+        name = name.substring(0, name.length() - 1);
+      }
+      name += "..";
+    }
+
+    int textWidth = fm.stringWidth(name);
+    // Center X: start at x + (width/2) - (text/2)
+    // Center Y: header is 16px, so roughly at y + 12
+    g2.drawString(name, x + (w - textWidth) / 2, y + 12);
   }
 
   private void drawAndGate(Graphics2D g2, Component c, int x, int y, boolean sel) {

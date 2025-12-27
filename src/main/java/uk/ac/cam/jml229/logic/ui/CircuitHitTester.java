@@ -14,12 +14,16 @@ import uk.ac.cam.jml229.logic.ui.CircuitRenderer.WireSegment;
 
 public class CircuitHitTester {
 
-  private final Circuit circuit;
+  private Circuit circuit;
   private final CircuitRenderer renderer;
 
   public CircuitHitTester(Circuit circuit, CircuitRenderer renderer) {
     this.circuit = circuit;
     this.renderer = renderer;
+  }
+
+  public void setCircuit(Circuit c) {
+    this.circuit = c;
   }
 
   public Pin findPinAt(Point p) {

@@ -33,6 +33,10 @@ public class CustomComponent extends Component {
     setInputCount(internalInputs.size());
   }
 
+  public Circuit getInnerCircuit() {
+    return innerCircuit;
+  }
+
   /**
    * Override makeCopy to use the correct constructor (Name + Circuit).
    * The base class uses Reflection to find a (String) constructor, which we don't

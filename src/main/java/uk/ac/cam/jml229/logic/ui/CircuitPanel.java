@@ -7,7 +7,7 @@ import uk.ac.cam.jml229.logic.model.Circuit;
 
 public class CircuitPanel extends JPanel {
 
-  private final Circuit circuit;
+  private Circuit circuit;
   private final CircuitRenderer renderer;
   private final CircuitInteraction interaction;
 
@@ -46,6 +46,17 @@ public class CircuitPanel extends JPanel {
   public void setPan(int x, int y) {
     this.panX = x;
     this.panY = y;
+    repaint();
+  }
+
+  public Circuit getCircuit() {
+    return circuit;
+  }
+
+  public void setCircuit(Circuit newCircuit) {
+    this.circuit = newCircuit;
+    // Pass the new circuit down to the interaction handler
+    this.interaction.setCircuit(newCircuit);
     repaint();
   }
 

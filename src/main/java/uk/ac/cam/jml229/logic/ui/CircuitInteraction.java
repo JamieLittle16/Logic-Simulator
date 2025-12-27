@@ -16,7 +16,7 @@ import uk.ac.cam.jml229.logic.ui.CircuitRenderer.WaypointRef;
 
 public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
-  private final Circuit circuit;
+  private Circuit circuit;
   private final CircuitPanel panel;
   private final CircuitRenderer renderer;
   private final CircuitHitTester hitTester;
@@ -69,6 +69,22 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   public void setPalette(ComponentPalette palette) {
     this.palette = palette;
+  }
+
+  public void setCircuit(Circuit c) {
+    this.circuit = c;
+    this.hitTester.setCircuit(c); // Pass it down to the helper
+
+    // Clear selection to avoid trying to move items that no longer exist
+    selectedComponents.clear();
+    selectedWireSegment = null;
+    selectedWaypoint = null;
+    hoveredPin = null;
+    connectionStartPin = null;
+  }
+
+  public Circuit getCircuit() {
+    return circuit;
   }
 
   // --- Accessors ---

@@ -5,6 +5,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 import java.util.List;
+import java.awt.geom.Point2D; // Required for precision panning
 
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
@@ -25,39 +26,28 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   // --- Interaction State ---
   private final List<Component> selectedComponents = new ArrayList<>();
   private WireSegment selectedWireSegment = null;
-
-  // Hover State
   private Pin hoveredPin = null;
   private WireSegment hoveredWire = null;
-
-  // Wiring State
   private Pin connectionStartPin = null;
   private Point currentMousePoint = null;
-
-  // Selection Box State
   private Rectangle selectionRect;
   private Point selectionStartPt;
+  private Point lastMousePt;
 
-  // --- SMOOTH DRAGGING STATE (NEW) ---
-  // We store the "Anchor" points when a drag begins.
-  // This prevents rounding errors and "jitter" from accumulating.
-
-  // For Panning
+  // Smooth Dragging State
   private boolean isPanning = false;
-  private Point panStartScreenPt; // Where mouse clicked on screen
-  private Point panStartOffset; // Where the pan was (panX, panY) at start
+  private Point panStartScreenPt;
 
-  // For Component Moving
+  // Using Point2D.Double because Pan coordinates are now doubles (for Zoom)
+  private Point2D.Double panStartOffset;
+
   private boolean isDraggingItems = false;
-  private Point dragStartWorldPt; // Where mouse clicked in world
-  // Maps component -> Its Top-Left (X,Y) at the start of the drag
+  private Point dragStartWorldPt;
   private final Map<Component, Point> initialComponentPositions = new HashMap<>();
 
-  // For Waypoint Moving
   private WaypointRef selectedWaypoint = null;
   private WaypointRef hoveredWaypoint = null;
 
-  // Ghost component (Placement)
   private Component componentToPlace = null;
 
   public CircuitInteraction(Circuit circuit, CircuitPanel panel, CircuitRenderer renderer) {
@@ -73,9 +63,8 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   public void setCircuit(Circuit c) {
     this.circuit = c;
-    this.hitTester.setCircuit(c); // Pass it down to the helper
+    this.hitTester.setCircuit(c);
 
-    // Clear selection to avoid trying to move items that no longer exist
     selectedComponents.clear();
     selectedWireSegment = null;
     selectedWaypoint = null;
@@ -156,7 +145,11 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   // --- Coordinate Transformation ---
   private Point getWorldPoint(MouseEvent e) {
-    return new Point(e.getX() - panel.getPanX(), e.getY() - panel.getPanY());
+    // Logic: (Screen - Pan) / Scale
+    double s = panel.getScale();
+    int wx = (int) Math.round((e.getX() - panel.getPanX()) / s);
+    int wy = (int) Math.round((e.getY() - panel.getPanY()) / s);
+    return new Point(wx, wy);
   }
 
   // --- Mouse Handling ---
@@ -176,7 +169,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   public void mouseMoved(MouseEvent e) {
     currentMousePoint = getWorldPoint(e);
 
-    // Update Ghost Component
     if (componentToPlace != null) {
       int gridX = Math.round(currentMousePoint.x / 20.0f) * 20;
       int gridY = Math.round(currentMousePoint.y / 20.0f) * 20;
@@ -185,7 +177,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     }
 
-    // Update Hover State
     Point worldPt = getWorldPoint(e);
 
     hoveredPin = hitTester.findPinAt(worldPt);
@@ -206,19 +197,21 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   @Override
   public void mousePressed(MouseEvent e) {
     panel.requestFocusInWindow();
+    lastMousePt = e.getPoint();
     currentMousePoint = getWorldPoint(e);
 
-    // --- Panning Start ---
+    // Panning
     boolean isLaptopPan = SwingUtilities.isLeftMouseButton(e) && e.isAltDown();
     if (SwingUtilities.isMiddleMouseButton(e) || isLaptopPan) {
       isPanning = true;
-      panStartScreenPt = e.getPoint(); // Store Screen Coords
-      panStartOffset = new Point(panel.getPanX(), panel.getPanY()); // Store Initial Pan
+      panStartScreenPt = e.getPoint();
+      // FIX: Capture doubles using Point2D.Double
+      panStartOffset = new Point2D.Double(panel.getPanX(), panel.getPanY());
       panel.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
       return;
     }
 
-    // --- Right Click ---
+    // Right Click
     if (SwingUtilities.isRightMouseButton(e)) {
       if (componentToPlace != null || connectionStartPin != null) {
         componentToPlace = null;
@@ -230,7 +223,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     }
 
-    // --- Left Click ---
     Point worldPt = getWorldPoint(e);
 
     // Place Component
@@ -283,7 +275,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     }
 
-    // Wire Click (Select or Split)
+    // Wire Click
     WireSegment clickedWire = hitTester.findWireAt(worldPt);
     if (clickedWire != null) {
       if (selectedWireSegment != null &&
@@ -309,8 +301,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     Component clickedComp = hitTester.findComponentAt(worldPt);
     if (clickedComp != null) {
       handleComponentSelection(e, clickedComp);
-
-      // --- Prepare Smooth Drag ---
       isDraggingItems = true;
       dragStartWorldPt = worldPt;
       initialComponentPositions.clear();
@@ -326,13 +316,9 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   @Override
   public void mouseDragged(MouseEvent e) {
 
-    // --- SMOOTH PANNING ---
     if (isPanning) {
-      // Calculate delta from the START of the drag
       int dx = e.getX() - panStartScreenPt.x;
       int dy = e.getY() - panStartScreenPt.y;
-
-      // Apply delta to the INITIAL pan offset
       panel.setPan(panStartOffset.x + dx, panStartOffset.y + dy);
       return;
     }
@@ -343,12 +329,10 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     }
 
-    // Waypoint Dragging (Already uses absolute setLocation, so it's smooth)
     if (selectedWaypoint != null) {
       Point pt = selectedWaypoint.point();
       pt.setLocation(getWorldPoint(e));
 
-      // Snapping logic
       List<Point> points = selectedWaypoint.connection().waypoints;
       int index = points.indexOf(pt);
       Point prev = null;
@@ -391,18 +375,14 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     }
 
-    // --- SMOOTH COMPONENT DRAGGING ---
     if (isDraggingItems) {
       Point currentWorld = getWorldPoint(e);
-
-      // Calculate delta from START of drag
       int dx = currentWorld.x - dragStartWorldPt.x;
       int dy = currentWorld.y - dragStartWorldPt.y;
 
       for (Component c : selectedComponents) {
         Point startPos = initialComponentPositions.get(c);
         if (startPos != null) {
-          // Set position relative to original position
           c.setPosition(startPos.x + dx, startPos.y + dy);
         }
       }
@@ -425,10 +405,8 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     if (selectionRect != null) {
       finalizeSelectionBox();
     }
-    // Clear drag state
     isDraggingItems = false;
     initialComponentPositions.clear();
-
     panel.repaint();
   }
 
@@ -444,7 +422,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     }
   }
 
-  // --- Key Listener ---
   @Override
   public void keyPressed(KeyEvent e) {
     if (e.getKeyCode() == KeyEvent.VK_DELETE || e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
@@ -464,10 +441,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   @Override
   public void keyReleased(KeyEvent e) {
   }
-
-  // ==========================================
-  // CUSTOM COMPONENT LOGIC
-  // ==========================================
 
   private void showContextMenu(int x, int y) {
     JPopupMenu menu = new JPopupMenu();
@@ -537,7 +510,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         selectedComponents.add(clickedComp);
       }
     }
-    // Note: isDraggingItems is set in mousePressed now
   }
 
   private void startSelectionBox(Point p) {

@@ -30,6 +30,9 @@ public class GuiMain {
   private static JMenuBar menuBar;
   private static JSplitPane splitPane;
 
+  // Simulation Timer
+  private static javax.swing.Timer simulationTimer;
+
   public static void main(String[] args) {
     System.setProperty("sun.java2d.opengl", "true");
     System.setProperty("awt.useSystemAAFontSettings", "on");
@@ -46,6 +49,13 @@ public class GuiMain {
 
       palette = new ComponentPalette(interaction, renderer);
       interaction.setPalette(palette);
+
+      // --- Simulation Timer ---
+      // 500ms delay = 2Hz (Toggles on/off every 500ms)
+      simulationTimer = new javax.swing.Timer(500, e -> {
+        circuitPanel.getCircuit().tick();
+        circuitPanel.repaint();
+      });
 
       // --- Build Menu Bar ---
       menuBar = new JMenuBar();
@@ -135,7 +145,6 @@ public class GuiMain {
           KeyStroke.getKeyStroke(KeyEvent.VK_0, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       zoomResetItem.addActionListener(e -> circuitPanel.resetZoom());
 
-      // SNAP TO GRID
       JCheckBoxMenuItem snapGridItem = new JCheckBoxMenuItem("Snap to Grid");
       snapGridItem.setSelected(false);
       snapGridItem.addActionListener(e -> {
@@ -180,9 +189,30 @@ public class GuiMain {
       viewMenu.add(snapGridItem);
       viewMenu.add(darkModeItem);
 
+      // Simulation Menu (NEW)
+      JMenu simMenu = new JMenu("Simulation");
+      JMenuItem startItem = new JMenuItem("Start");
+      startItem.addActionListener(e -> simulationTimer.start());
+
+      JMenuItem stopItem = new JMenuItem("Stop");
+      stopItem.addActionListener(e -> simulationTimer.stop());
+
+      JMenuItem stepItem = new JMenuItem("Step (Manual Tick)");
+      stepItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_T, 0));
+      stepItem.addActionListener(e -> {
+        circuitPanel.getCircuit().tick();
+        circuitPanel.repaint();
+      });
+
+      simMenu.add(startItem);
+      simMenu.add(stopItem);
+      simMenu.addSeparator();
+      simMenu.add(stepItem);
+
       menuBar.add(fileMenu);
       menuBar.add(editMenu);
       menuBar.add(viewMenu);
+      menuBar.add(simMenu); // ADDED
 
       menuBar.add(Box.createHorizontalGlue());
       zoomStatusLabel = new JLabel("Zoom: 100%  ");

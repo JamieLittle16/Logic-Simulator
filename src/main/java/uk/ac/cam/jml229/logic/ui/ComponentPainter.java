@@ -22,6 +22,8 @@ public class ComponentPainter {
 
     if (c instanceof Switch)
       drawSwitch(g2, (Switch) c, x, y, sel);
+    else if (c instanceof Clock)
+      drawClock(g2, (Clock) c, x, y, sel);
     else if (c instanceof OutputProbe)
       drawLight(g2, (OutputProbe) c, x, y, sel);
     else if (c instanceof AndGate)
@@ -204,6 +206,37 @@ public class ComponentPainter {
     g2.drawOval(x, y, 40, 40);
     g2.setColor(new Color(255, 255, 255, 100));
     g2.fillOval(x + 10, y + 8, 12, 8);
+  }
+
+  private void drawClock(Graphics2D g2, Clock c, int x, int y, boolean sel) {
+    // Background Box
+    if (sel) {
+      g2.setColor(Theme.SELECTION_BORDER);
+      g2.setStroke(new BasicStroke(5));
+      g2.drawRoundRect(x, y + 5, 40, 30, 5, 5);
+    }
+    g2.setColor(Theme.SWITCH_FILL);
+    g2.fillRoundRect(x, y + 5, 40, 30, 5, 5);
+    g2.setColor(Theme.COMP_BORDER);
+    g2.setStroke(new BasicStroke(2));
+    g2.drawRoundRect(x, y + 5, 40, 30, 5, 5);
+
+    // Pulse Icon
+    boolean on = c.getState();
+    g2.setColor(on ? new Color(100, 255, 100) : new Color(100, 100, 100));
+    g2.setStroke(new BasicStroke(2));
+
+    // Draw Square Wave symbol
+    Path2D wave = new Path2D.Double();
+    int sy = y + 25;
+    int sx = x + 8;
+    wave.moveTo(sx, sy);
+    wave.lineTo(sx + 8, sy);
+    wave.lineTo(sx + 8, sy - 10);
+    wave.lineTo(sx + 16, sy - 10);
+    wave.lineTo(sx + 16, sy);
+    wave.lineTo(sx + 24, sy);
+    g2.draw(wave);
   }
 
   private void drawAndGate(Graphics2D g2, Component c, int x, int y, boolean sel) {

@@ -33,6 +33,9 @@ public class ComponentPalette extends JPanel implements Scrollable {
     addTool(new OrGate("OR"));
     addTool(new NotGate("NOT"));
 
+    addLabel("Sequential");
+    addTool(new Clock("CLK"));
+
     addLabel("Advanced");
     addTool(new NandGate("NAND"));
     addTool(new NorGate("NOR"));
@@ -201,6 +204,8 @@ public class ComponentPalette extends JPanel implements Scrollable {
       return new NorGate("NOR");
     if (prototype instanceof BufferGate)
       return new BufferGate("BUF");
+    if (prototype instanceof Clock)
+      return new Clock("CLK");
     if (prototype instanceof CustomComponent)
       return prototype.makeCopy();
     return null;

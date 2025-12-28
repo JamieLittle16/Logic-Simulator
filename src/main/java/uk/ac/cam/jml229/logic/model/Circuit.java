@@ -11,6 +11,18 @@ public class Circuit {
   private final List<Wire> wires = new ArrayList<>();
 
   /**
+   * Advances the simulation by one step.
+   * Called by the global Timer.
+   */
+  public void tick() {
+    for (Component c : components) {
+      if (c instanceof Clock) {
+        ((Clock) c).tick();
+      }
+    }
+  }
+
+  /**
    * Adds a component to the circuit.
    * If the component already has wires attached (e.g. from a copy-paste),
    * it ensures those wires are tracked too.

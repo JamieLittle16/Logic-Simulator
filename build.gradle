@@ -8,7 +8,12 @@ repositories {
 }
 
 dependencies {
+    // Standard logging facade (highly recommended for production over System.out)
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    implementation 'org.slf4j:slf4j-simple:2.0.9' 
 
+    // Testing framework
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
 }
 
 java {
@@ -20,10 +25,11 @@ java {
 jar {
     manifest {
         attributes(
-            'Main-Class': 'uk.ac.cam.jml229.logic.Main' 
+            'Main-Class': 'uk.ac.cam.jml229.logic.ui.GuiMain' 
         )
     }
-    // Includes any dependencies in the jar so it's standalone
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    
     from {
         configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }

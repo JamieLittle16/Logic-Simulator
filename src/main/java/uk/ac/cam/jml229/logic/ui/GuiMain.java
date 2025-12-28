@@ -129,6 +129,13 @@ public class GuiMain {
           KeyStroke.getKeyStroke(KeyEvent.VK_0, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       zoomResetItem.addActionListener(e -> circuitPanel.resetZoom());
 
+      // SNAP TO GRID (New Item)
+      JCheckBoxMenuItem snapGridItem = new JCheckBoxMenuItem("Snap to Grid");
+      snapGridItem.setSelected(false); // Default OFF per user description
+      snapGridItem.addActionListener(e -> {
+        circuitPanel.getInteraction().setSnapToGrid(snapGridItem.isSelected());
+      });
+
       // Dark Mode Item
       JCheckBoxMenuItem darkModeItem = new JCheckBoxMenuItem("Dark Mode");
       darkModeItem.addActionListener(e -> {
@@ -164,6 +171,7 @@ public class GuiMain {
       viewMenu.addSeparator();
       viewMenu.add(zoomResetItem);
       viewMenu.addSeparator();
+      viewMenu.add(snapGridItem); // Added here
       viewMenu.add(darkModeItem);
 
       menuBar.add(fileMenu);

@@ -5,7 +5,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 import java.util.List;
-import java.awt.geom.Point2D; // Required for precision panning
+import java.awt.geom.Point2D;
 
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
@@ -26,7 +26,10 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   private final HistoryManager history = new HistoryManager();
   private ComponentPalette palette;
 
-  // --- Clipboard (static to survive file reload) ---
+  // --- Settings ---
+  private boolean snapToGrid = false; // Default to free movement
+
+  // --- Clipboard ---
   private static String clipboardString = null;
 
   // --- Interaction State ---
@@ -43,8 +46,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   // Smooth Dragging State
   private boolean isPanning = false;
   private Point panStartScreenPt;
-
-  // Using Point2D.Double because Pan coordinates are now doubles (for Zoom)
   private Point2D.Double panStartOffset;
 
   private boolean isDraggingItems = false;
@@ -71,6 +72,14 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     this.palette = palette;
   }
 
+  public void setSnapToGrid(boolean enabled) {
+    this.snapToGrid = enabled;
+  }
+
+  public boolean isSnapToGrid() {
+    return snapToGrid;
+  }
+
   public void setCircuit(Circuit c) {
     this.circuit = c;
     this.hitTester.setCircuit(c);
@@ -93,14 +102,10 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     if (selectedComponents.isEmpty())
       return;
 
-    // Create a temporary circuit with JUST the selected items
     Circuit temp = new Circuit();
     for (Component c : selectedComponents) {
       temp.addComponent(c);
     }
-
-    // 2. Serialize it (StorageManager handles omitting wires that go to
-    // non-selected items)
     clipboardString = StorageManager.saveToString(temp, null);
   }
 
@@ -109,31 +114,25 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
 
     try {
-      // Save state for Undo
       history.pushState(circuit);
-
-      // Parse the clipboard
       StorageManager.LoadResult result = StorageManager.loadFromString(clipboardString);
       Circuit pastedCircuit = result.circuit();
 
       if (pastedCircuit.getComponents().isEmpty())
         return;
 
-      // Import any custom tools required by the pasted items
       if (palette != null) {
         for (CustomComponent cc : result.customTools()) {
           palette.addCustomTool(cc);
         }
       }
 
-      // Deselect current items
       selectedComponents.clear();
 
-      // Add new items (Shifted by 20px)
       for (Component c : pastedCircuit.getComponents()) {
         c.setPosition(c.getX() + 20, c.getY() + 20);
         circuit.addComponent(c);
-        selectedComponents.add(c); // Select the new items
+        selectedComponents.add(c);
       }
 
       panel.repaint();
@@ -146,7 +145,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   public void undo() {
     Circuit prev = history.undo(circuit);
     if (prev != null) {
-      panel.setCircuit(prev); // This updates 'this.circuit' and repaints
+      panel.setCircuit(prev);
     }
   }
 
@@ -246,7 +245,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   // --- Coordinate Transformation ---
   private Point getWorldPoint(MouseEvent e) {
-    // Logic: (Screen - Pan) / Scale
     double s = panel.getScale();
     int wx = (int) Math.round((e.getX() - panel.getPanX()) / s);
     int wy = (int) Math.round((e.getY() - panel.getPanY()) / s);
@@ -272,9 +270,15 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
     if (componentToPlace != null) {
       history.pushState(circuit);
-      int gridX = Math.round(currentMousePoint.x / 20.0f) * 20;
-      int gridY = Math.round(currentMousePoint.y / 20.0f) * 20;
-      componentToPlace.setPosition(gridX, gridY);
+      int x = currentMousePoint.x;
+      int y = currentMousePoint.y;
+
+      if (snapToGrid) {
+        x = Math.round(x / 20.0f) * 20;
+        y = Math.round(y / 20.0f) * 20;
+      }
+
+      componentToPlace.setPosition(x, y);
       panel.repaint();
       return;
     }
@@ -288,7 +292,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     if (hoveredPin != null || hoveredWire != null || hoveredWaypoint != null) {
       panel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     } else {
-      // Logic moved to HitTester
       Component c = hitTester.findComponentAt(worldPt);
       panel.setCursor(c != null ? Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR)
           : Cursor.getDefaultCursor());
@@ -309,7 +312,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     if (SwingUtilities.isMiddleMouseButton(e) || isLaptopPan) {
       isPanning = true;
       panStartScreenPt = e.getPoint();
-      // FIX: Capture doubles using Point2D.Double
       panStartOffset = new Point2D.Double(panel.getPanX(), panel.getPanY());
       panel.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
       return;
@@ -441,44 +443,54 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         isDragged = true;
       }
       Point pt = selectedWaypoint.point();
-      pt.setLocation(getWorldPoint(e));
+      Point target = getWorldPoint(e);
 
-      List<Point> points = selectedWaypoint.connection().waypoints;
-      int index = points.indexOf(pt);
-      Point prev = null;
-      Point next = null;
-      Wire w = getWireForConnection(selectedWaypoint.connection());
-
-      if (index > 0) {
-        prev = points.get(index - 1);
-      } else if (w != null) {
-        Component src = w.getSource();
-        int srcIdx = 0;
-        for (int i = 0; i < src.getOutputCount(); i++)
-          if (src.getOutputWire(i) == w)
-            srcIdx = i;
-        prev = renderer.getPinLocation(src, false, srcIdx);
-      }
-
-      if (index < points.size() - 1) {
-        next = points.get(index + 1);
+      if (snapToGrid) {
+        // Simple Snap Logic for Waypoints
+        target.x = Math.round(target.x / 20.0f) * 20;
+        target.y = Math.round(target.y / 20.0f) * 20;
+        pt.setLocation(target);
       } else {
-        next = renderer.getPinLocation(selectedWaypoint.connection().component, true,
-            selectedWaypoint.connection().inputIndex);
-      }
+        // Standard Behavior with smart axis snapping
+        pt.setLocation(target);
 
-      int snapDist = 15;
-      if (prev != null) {
-        if (Math.abs(pt.x - prev.x) < snapDist)
-          pt.x = prev.x;
-        if (Math.abs(pt.y - prev.y) < snapDist)
-          pt.y = prev.y;
-      }
-      if (next != null) {
-        if (Math.abs(pt.x - next.x) < snapDist)
-          pt.x = next.x;
-        if (Math.abs(pt.y - next.y) < snapDist)
-          pt.y = next.y;
+        List<Point> points = selectedWaypoint.connection().waypoints;
+        int index = points.indexOf(pt);
+        Point prev = null;
+        Point next = null;
+        Wire w = getWireForConnection(selectedWaypoint.connection());
+
+        if (index > 0) {
+          prev = points.get(index - 1);
+        } else if (w != null) {
+          Component src = w.getSource();
+          int srcIdx = 0;
+          for (int i = 0; i < src.getOutputCount(); i++)
+            if (src.getOutputWire(i) == w)
+              srcIdx = i;
+          prev = renderer.getPinLocation(src, false, srcIdx);
+        }
+
+        if (index < points.size() - 1) {
+          next = points.get(index + 1);
+        } else {
+          next = renderer.getPinLocation(selectedWaypoint.connection().component, true,
+              selectedWaypoint.connection().inputIndex);
+        }
+
+        int snapDist = 15;
+        if (prev != null) {
+          if (Math.abs(pt.x - prev.x) < snapDist)
+            pt.x = prev.x;
+          if (Math.abs(pt.y - prev.y) < snapDist)
+            pt.y = prev.y;
+        }
+        if (next != null) {
+          if (Math.abs(pt.x - next.x) < snapDist)
+            pt.x = next.x;
+          if (Math.abs(pt.y - next.y) < snapDist)
+            pt.y = next.y;
+        }
       }
 
       panel.repaint();
@@ -493,6 +505,11 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       Point currentWorld = getWorldPoint(e);
       int dx = currentWorld.x - dragStartWorldPt.x;
       int dy = currentWorld.y - dragStartWorldPt.y;
+
+      if (snapToGrid) {
+        dx = Math.round(dx / 20.0f) * 20;
+        dy = Math.round(dy / 20.0f) * 20;
+      }
 
       for (Component c : selectedComponents) {
         Point startPos = initialComponentPositions.get(c);
@@ -566,16 +583,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         panel.repaint();
       }
     }
-    /*
-     * Undo/Redo handlef by the menu bar instead
-     * if (e.isControlDown()) {
-     * if (e.getKeyCode() == KeyEvent.VK_Z) {
-     * undo();
-     * } else if (e.getKeyCode() == KeyEvent.VK_Y) {
-     * redo();
-     * }
-     * }
-     */
   }
 
   @Override

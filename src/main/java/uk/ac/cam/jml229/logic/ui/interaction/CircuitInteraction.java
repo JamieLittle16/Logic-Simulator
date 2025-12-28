@@ -9,6 +9,7 @@ import java.util.List;
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.core.Circuit;
+import uk.ac.cam.jml229.logic.core.Wire;
 import uk.ac.cam.jml229.logic.ui.panels.CircuitPanel;
 import uk.ac.cam.jml229.logic.ui.panels.ComponentPalette;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer;
@@ -233,6 +234,67 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       panel.repaint();
     } catch (Exception e) {
       e.printStackTrace();
+    }
+  }
+
+  public void createCustomComponentFromSelection() {
+    if (selectedComponents.isEmpty())
+      return;
+
+    String name = JOptionPane.showInputDialog(panel, "Enter Name (max 5 chars):", "New Component",
+        JOptionPane.PLAIN_MESSAGE);
+    if (name == null || name.trim().isEmpty())
+      return;
+    if (name.length() > 5)
+      name = name.substring(0, 5);
+
+    // Create a mini-circuit from selection
+    Circuit innerCircuit = new Circuit();
+    Map<Component, Component> oldToNew = new HashMap<>();
+
+    // Clone Components
+    for (Component original : selectedComponents) {
+      Component clone = original.makeCopy();
+      // Preserve relative positions
+      clone.setPosition(original.getX(), original.getY());
+      innerCircuit.addComponent(clone);
+      oldToNew.put(original, clone);
+    }
+
+    // Clone Internal Wires
+    for (Wire w : circuit.getWires()) {
+      Component source = w.getSource();
+      // Only care if source is in selection
+      if (source == null || !selectedComponents.contains(source))
+        continue;
+
+      int sourceIndex = -1;
+      for (int i = 0; i < source.getOutputCount(); i++) {
+        if (source.getOutputWire(i) == w) {
+          sourceIndex = i;
+          break;
+        }
+      }
+      if (sourceIndex == -1)
+        continue;
+
+      for (Wire.PortConnection pc : w.getDestinations()) {
+        // Only care if destination is in selection
+        if (selectedComponents.contains(pc.component)) {
+          Component newSource = oldToNew.get(source);
+          Component newDest = oldToNew.get(pc.component);
+          innerCircuit.addConnection(newSource, sourceIndex, newDest, pc.inputIndex);
+        }
+      }
+    }
+
+    // Create the CustomComponent wrapper
+    CustomComponent newTool = new CustomComponent(name, innerCircuit);
+
+    // Add to Palette
+    if (palette != null) {
+      palette.addCustomTool(newTool);
+      JOptionPane.showMessageDialog(panel, "Custom Component '" + name + "' added to palette!");
     }
   }
 

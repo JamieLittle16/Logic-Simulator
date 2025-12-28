@@ -16,7 +16,6 @@ public class IdleState implements InteractionState {
 
   protected final CircuitInteraction ctx;
 
-  // Panning State
   private boolean isPanning = false;
   private Point panStartScreen;
   private Point2D.Double panStartOffset;
@@ -36,7 +35,6 @@ public class IdleState implements InteractionState {
     ctx.getPanel().requestFocusInWindow();
     Point worldPt = ctx.getWorldPoint(e);
 
-    // Pan
     if (SwingUtilities.isMiddleMouseButton(e) || (SwingUtilities.isLeftMouseButton(e) && e.isAltDown())) {
       isPanning = true;
       panStartScreen = e.getPoint();
@@ -45,17 +43,23 @@ public class IdleState implements InteractionState {
       return;
     }
 
-    // Right Click
     if (SwingUtilities.isRightMouseButton(e)) {
+      // Ensure right-click selects the item if it isn't already selected
+      Component c = ctx.getHitTester().findComponentAt(worldPt);
+      if (c != null && !ctx.getSelection().contains(c)) {
+        if (!e.isShiftDown())
+          ctx.clearSelection();
+        ctx.addToSelection(c);
+      }
+
       if (!ctx.getSelection().isEmpty())
         showContextMenu(e.getX(), e.getY());
       return;
     }
 
-    // Hit Testing
     Pin pin = ctx.getHitTester().findPinAt(worldPt);
     if (pin != null) {
-      ctx.setState(new WiringState(ctx, pin, worldPt)); // Pass worldPt for immediate preview
+      ctx.setState(new WiringState(ctx, pin, worldPt));
       return;
     }
 
@@ -92,7 +96,6 @@ public class IdleState implements InteractionState {
       return;
     }
 
-    // Empty Space
     ctx.clearSelection();
     ctx.setState(new SelectionState(ctx, worldPt));
   }
@@ -131,7 +134,6 @@ public class IdleState implements InteractionState {
 
   @Override
   public void mouseClicked(MouseEvent e) {
-    // Prevent clicking if just dragged or placed
     if (ctx.shouldPreventNextClick())
       return;
 
@@ -178,16 +180,34 @@ public class IdleState implements InteractionState {
 
   private void showContextMenu(int x, int y) {
     JPopupMenu menu = new JPopupMenu();
+
+    JMenuItem createIC = new JMenuItem("Create Custom IC");
+    createIC.addActionListener(e -> ctx.createCustomComponentFromSelection());
+    menu.add(createIC);
+
+    menu.addSeparator();
+
+    JMenuItem cut = new JMenuItem("Cut");
+    cut.addActionListener(e -> ctx.cut());
+    menu.add(cut);
+
+    JMenuItem copy = new JMenuItem("Copy");
+    copy.addActionListener(e -> ctx.copy());
+    menu.add(copy);
+
+    menu.addSeparator();
+
     JMenuItem rename = new JMenuItem("Rename");
     rename.addActionListener(e -> {
       if (!ctx.getSelection().isEmpty())
         renameComponent(ctx.getSelection().get(0));
     });
+    menu.add(rename);
+
     JMenuItem delete = new JMenuItem("Delete");
     delete.addActionListener(e -> ctx.deleteSelection());
-
-    menu.add(rename);
     menu.add(delete);
+
     menu.show(ctx.getPanel(), x, y);
   }
 }

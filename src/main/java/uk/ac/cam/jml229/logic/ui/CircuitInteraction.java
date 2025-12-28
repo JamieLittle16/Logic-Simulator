@@ -358,6 +358,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
     // Wiring Phase 2
     if (connectionStartPin != null) {
+      // Option A: Clicked another Pin
       if (clickedPin != null) {
         if (connectionStartPin.isInput() != clickedPin.isInput()) {
           history.pushState(circuit);
@@ -366,9 +367,64 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
           circuit.addConnection(sourcePin.component(), sourcePin.index(), destPin.component(), destPin.index());
         }
         connectionStartPin = null;
-      } else {
-        connectionStartPin = null;
+        panel.repaint();
+        return;
       }
+
+      // Option B: T-JUNCTION (Clicked a Wire while dragging from an Input Pin)
+      WireSegment clickedSegment = hitTester.findWireAt(worldPt);
+      if (clickedSegment != null && connectionStartPin.isInput()) {
+        Wire w = clickedSegment.wire();
+        Component source = w.getSource();
+
+        if (source != null) {
+          // Find which output index this wire belongs to
+          int sourceIdx = -1;
+          for (int i = 0; i < source.getOutputCount(); i++) {
+            if (source.getOutputWire(i) == w) {
+              sourceIdx = i;
+              break;
+            }
+          }
+
+          if (sourceIdx != -1) {
+            history.pushState(circuit);
+
+            // 1. Calculate insertion index and Point
+            int idx = hitTester.getWaypointInsertionIndex(clickedSegment, worldPt);
+            Wire.PortConnection targetPC = clickedSegment.connection();
+
+            // 2. IMPORTANT: Insert the T-Junction point into the EXISTING wire
+            // This ensures the "Main Trunk" changes shape to match the new branch
+            targetPC.waypoints.add(idx, new Point(worldPt));
+
+            // 3. Connect the new pin
+            boolean success = circuit.addConnection(source, sourceIdx, connectionStartPin.component(),
+                connectionStartPin.index());
+
+            if (success) {
+              // 4. Copy waypoints to the NEW connection
+              // Find the new connection (it's the one we just added)
+              for (Wire.PortConnection pc : w.getDestinations()) {
+                if (pc.component == connectionStartPin.component() && pc.inputIndex == connectionStartPin.index()) {
+                  // Copy path up to (and including) the new T-Junction point
+                  for (int k = 0; k <= idx; k++) {
+                    pc.waypoints.add(new Point(targetPC.waypoints.get(k)));
+                  }
+                  break;
+                }
+              }
+            }
+
+            connectionStartPin = null;
+            panel.repaint();
+            return;
+          }
+        }
+      }
+
+      // Option C: Clicked Empty Space (Cancel)
+      connectionStartPin = null;
       panel.repaint();
       return;
     }
@@ -395,7 +451,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     }
 
-    // Wire Click
+    // Wire Click (Add Waypoint)
     WireSegment clickedWire = hitTester.findWireAt(worldPt);
     if (clickedWire != null) {
       if (selectedWireSegment != null &&
@@ -472,7 +528,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         pt.setLocation(target);
       } else {
         pt.setLocation(target);
-
+        // Smart axis snapping
         List<Point> points = selectedWaypoint.connection().waypoints;
         int index = points.indexOf(pt);
         Point prev = null;
@@ -564,12 +620,10 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   public void mouseClicked(MouseEvent e) {
     if (connectionStartPin == null && !isDraggingItems && componentToPlace == null) {
       Point worldPt = getWorldPoint(e);
-
       if (hitTester.findPinAt(worldPt) != null)
         return;
       if (hitTester.findWaypointAt(worldPt) != null)
         return;
-
       Component c = hitTester.findComponentAt(worldPt);
       if (c instanceof Switch) {
         ((Switch) c).toggle(!((Switch) c).getState());
@@ -580,40 +634,21 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   @Override
   public void keyPressed(KeyEvent e) {
-    if (e.getKeyCode() == KeyEvent.VK_DELETE || e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
+    if (e.getKeyCode() == KeyEvent.VK_DELETE || e.getKeyCode() == KeyEvent.VK_BACK_SPACE)
       deleteSelection();
-    }
     if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
       connectionStartPin = null;
       componentToPlace = null;
       panel.repaint();
     }
-
-    // CUT SHORTCUT
-    if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_X) {
+    if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_X)
       cut();
-    }
+    if (e.getKeyCode() == KeyEvent.VK_R)
+      rotateSelection();
 
-    if (e.getKeyCode() == KeyEvent.VK_R) {
-      if (componentToPlace != null) {
-        componentToPlace.rotate();
-        panel.repaint();
-      } else if (!selectedComponents.isEmpty()) {
-        for (Component c : selectedComponents) {
-          c.rotate();
-        }
-        panel.repaint();
-      }
-    }
-
-    int dx = 0;
-    int dy = 0;
-    int step = snapToGrid ? 20 : 1;
-
-    if (!snapToGrid && e.isShiftDown()) {
+    int dx = 0, dy = 0, step = snapToGrid ? 20 : 1;
+    if (!snapToGrid && e.isShiftDown())
       step = 10;
-    }
-
     switch (e.getKeyCode()) {
       case KeyEvent.VK_UP:
         dy = -step;
@@ -628,19 +663,13 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         dx = step;
         break;
     }
-
     if (dx != 0 || dy != 0) {
       if (!selectedComponents.isEmpty() || !selectedWaypoints.isEmpty()) {
         history.pushState(circuit);
-
-        for (Component c : selectedComponents) {
+        for (Component c : selectedComponents)
           c.setPosition(c.getX() + dx, c.getY() + dy);
-        }
-
-        for (WaypointRef wp : selectedWaypoints) {
+        for (WaypointRef wp : selectedWaypoints)
           wp.point().translate(dx, dy);
-        }
-
         panel.repaint();
       }
     }
@@ -656,24 +685,18 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   private void showContextMenu(int x, int y) {
     JPopupMenu menu = new JPopupMenu();
-
-    // Added Cut
     JMenuItem cutItem = new JMenuItem("Cut");
     cutItem.addActionListener(e -> cut());
     menu.add(cutItem);
-
     JMenuItem copyItem = new JMenuItem("Copy");
     copyItem.addActionListener(e -> copy());
     menu.add(copyItem);
-
     JMenuItem createItem = new JMenuItem("Create Custom Component");
     createItem.addActionListener(e -> createCustomComponentFromSelection());
     menu.add(createItem);
-
     JMenuItem deleteItem = new JMenuItem("Delete Selection");
     deleteItem.addActionListener(e -> deleteSelection());
     menu.add(deleteItem);
-
     menu.show(panel, x, y);
   }
 
@@ -761,10 +784,9 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   }
 
   private Wire getWireForConnection(Wire.PortConnection pc) {
-    for (Wire w : circuit.getWires()) {
+    for (Wire w : circuit.getWires())
       if (w.getDestinations().contains(pc))
         return w;
-    }
     return null;
   }
 }

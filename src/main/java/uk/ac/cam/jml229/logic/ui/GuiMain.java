@@ -51,7 +51,7 @@ public class GuiMain {
       interaction.setPalette(palette);
 
       // --- Simulation Timer ---
-      // 500ms delay = 2Hz (Toggles on/off every 500ms)
+      // Default to 2Hz (500ms)
       simulationTimer = new javax.swing.Timer(500, e -> {
         circuitPanel.getCircuit().tick();
         circuitPanel.repaint();
@@ -189,7 +189,7 @@ public class GuiMain {
       viewMenu.add(snapGridItem);
       viewMenu.add(darkModeItem);
 
-      // Simulation Menu (NEW)
+      // Simulation Menu
       JMenu simMenu = new JMenu("Simulation");
       JMenuItem startItem = new JMenuItem("Start");
       startItem.addActionListener(e -> simulationTimer.start());
@@ -204,15 +204,28 @@ public class GuiMain {
         circuitPanel.repaint();
       });
 
+      // Speed Submenu
+      JMenu speedMenu = new JMenu("Clock Speed");
+      ButtonGroup speedGroup = new ButtonGroup();
+
+      addSpeedItem(speedMenu, speedGroup, "0.5 Hz (Slow)", 2000);
+      addSpeedItem(speedMenu, speedGroup, "1 Hz", 1000);
+      addSpeedItem(speedMenu, speedGroup, "2 Hz (Default)", 500).setSelected(true);
+      addSpeedItem(speedMenu, speedGroup, "5 Hz", 200);
+      addSpeedItem(speedMenu, speedGroup, "10 Hz", 100);
+      addSpeedItem(speedMenu, speedGroup, "20 Hz", 50);
+      addSpeedItem(speedMenu, speedGroup, "50 Hz (Fast)", 20);
+
       simMenu.add(startItem);
       simMenu.add(stopItem);
-      simMenu.addSeparator();
       simMenu.add(stepItem);
+      simMenu.addSeparator();
+      simMenu.add(speedMenu);
 
       menuBar.add(fileMenu);
       menuBar.add(editMenu);
       menuBar.add(viewMenu);
-      menuBar.add(simMenu); // ADDED
+      menuBar.add(simMenu);
 
       menuBar.add(Box.createHorizontalGlue());
       zoomStatusLabel = new JLabel("Zoom: 100%  ");
@@ -260,7 +273,19 @@ public class GuiMain {
       // Full Screen by default
       toggleFullScreen(frame);
       circuitPanel.requestFocusInWindow();
+
+      // Auto-Start Simulation
+      simulationTimer.start();
     });
+  }
+
+  // Helper to add radio buttons for speed
+  private static JRadioButtonMenuItem addSpeedItem(JMenu menu, ButtonGroup group, String label, int delayMs) {
+    JRadioButtonMenuItem item = new JRadioButtonMenuItem(label);
+    item.addActionListener(e -> simulationTimer.setDelay(delayMs));
+    group.add(item);
+    menu.add(item);
+    return item;
   }
 
   private static void performSave() {

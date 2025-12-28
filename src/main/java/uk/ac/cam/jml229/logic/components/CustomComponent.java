@@ -27,27 +27,36 @@ public class CustomComponent extends Component {
       }
     }
 
+    // Sort pins by Y position to match visual layout
     internalInputs.sort((a, b) -> Integer.compare(a.getY(), b.getY()));
     internalOutputs.sort((a, b) -> Integer.compare(a.getY(), b.getY()));
 
     // Configure External Pins
     setInputCount(internalInputs.size());
+
+    // --- FIX: Event-Driven Outputs ---
+    // Instead of polling outputs in update(), we listen for when they change.
+    // This handles the propagation delay correctly.
+    for (int i = 0; i < internalOutputs.size(); i++) {
+      final int index = i;
+      OutputProbe probe = internalOutputs.get(i);
+
+      probe.setOnStateChanged(() -> {
+        boolean val = probe.getState();
+        Wire w = getOutputWire(index);
+        if (w != null) {
+          w.setSignal(val);
+        }
+      });
+    }
   }
 
   public Circuit getInnerCircuit() {
     return innerCircuit;
   }
 
-  /**
-   * Override makeCopy to use the correct constructor (Name + Circuit).
-   * The base class uses Reflection to find a (String) constructor, which we don't
-   * have.
-   */
   @Override
   public Component makeCopy() {
-    // We pass our 'innerCircuit' as the template.
-    // The constructor will call .cloneCircuit() on it, ensuring the new copy
-    // has its own independent logic.
     return new CustomComponent(getName(), this.innerCircuit);
   }
 
@@ -59,6 +68,9 @@ public class CustomComponent extends Component {
   @Override
   public void update() {
     // Bridge In: External Input -> Internal Switch
+    // When these switches toggle, they queue events in the Simulator.
+    // Eventually, those events ripple to the OutputProbes, triggering the listeners
+    // above.
     for (int i = 0; i < internalInputs.size(); i++) {
       if (i < getInputCount()) {
         boolean val = getInput(i);
@@ -66,14 +78,7 @@ public class CustomComponent extends Component {
       }
     }
 
-    // Bridge Out: Internal Probe -> External Output Wire
-    for (int i = 0; i < internalOutputs.size(); i++) {
-      boolean result = internalOutputs.get(i).getState();
-
-      Wire w = getOutputWire(i);
-      if (w != null) {
-        w.setSignal(result);
-      }
-    }
+    // Removed: "Bridge Out" loop.
+    // We no longer manually push outputs here, because they are not ready yet.
   }
 }

@@ -193,7 +193,7 @@ public class StorageManager {
             c = prototypes.get(name).makeCopy();
         }
       } else {
-        // --- UPDATED: Use Registry ---
+        // --- Use Registry ---
         var entry = ComponentRegistry.fromId(type);
         if (entry.isPresent()) {
           c = entry.get().createInstance();

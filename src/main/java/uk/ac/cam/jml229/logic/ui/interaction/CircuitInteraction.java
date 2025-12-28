@@ -9,14 +9,15 @@ import java.awt.geom.Point2D;
 
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
-import uk.ac.cam.jml229.logic.components.io.Switch;
+import uk.ac.cam.jml229.logic.components.io.Switch; // Import Switch specifically
 import uk.ac.cam.jml229.logic.core.Circuit;
 import uk.ac.cam.jml229.logic.core.Wire;
+import uk.ac.cam.jml229.logic.ui.panels.CircuitPanel;
+import uk.ac.cam.jml229.logic.ui.panels.ComponentPalette;
+import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.Pin;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.WireSegment;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.WaypointRef;
-import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer;
-import uk.ac.cam.jml229.logic.ui.panels.*;
 import uk.ac.cam.jml229.logic.io.HistoryManager;
 import uk.ac.cam.jml229.logic.io.StorageManager;
 
@@ -46,7 +47,9 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   private Point currentMousePoint = null;
   private Rectangle selectionRect;
   private Point selectionStartPt;
+
   private Point lastMousePt;
+  private boolean hasMovedSincePress = false;
 
   // Smooth Dragging State
   private boolean isPanning = false;
@@ -283,7 +286,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     currentMousePoint = getWorldPoint(e);
 
     if (componentToPlace != null) {
-      history.pushState(circuit);
       int x = currentMousePoint.x;
       int y = currentMousePoint.y;
 
@@ -318,6 +320,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   public void mousePressed(MouseEvent e) {
     panel.requestFocusInWindow();
     lastMousePt = e.getPoint();
+    hasMovedSincePress = false; // Reset movement flag
     currentMousePoint = getWorldPoint(e);
     isDragged = false;
 
@@ -347,6 +350,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
     // Place Component
     if (componentToPlace != null) {
+      history.pushState(circuit); // Save state BEFORE placement
       circuit.addComponent(componentToPlace);
       if (e.isControlDown()) {
         componentToPlace = componentToPlace.makeCopy();
@@ -361,7 +365,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
     // Wiring Phase 2
     if (connectionStartPin != null) {
-      // Option A: Clicked another Pin
       if (clickedPin != null) {
         if (connectionStartPin.isInput() != clickedPin.isInput()) {
           history.pushState(circuit);
@@ -374,14 +377,12 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         return;
       }
 
-      // Option B: T-JUNCTION (Clicked a Wire while dragging from an Input Pin)
+      // T-JUNCTION LOGIC
       WireSegment clickedSegment = hitTester.findWireAt(worldPt);
       if (clickedSegment != null && connectionStartPin.isInput()) {
         Wire w = clickedSegment.wire();
         Component source = w.getSource();
-
         if (source != null) {
-          // Find which output index this wire belongs to
           int sourceIdx = -1;
           for (int i = 0; i < source.getOutputCount(); i++) {
             if (source.getOutputWire(i) == w) {
@@ -389,36 +390,23 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
               break;
             }
           }
-
           if (sourceIdx != -1) {
             history.pushState(circuit);
-
-            // Calculate insertion index and Point
             int idx = hitTester.getWaypointInsertionIndex(clickedSegment, worldPt);
             Wire.PortConnection targetPC = clickedSegment.connection();
-
-            // IMPORTANT: Insert the T-Junction point into the EXISTING wire
-            // This ensures the "Main Trunk" changes shape to match the new branch
             targetPC.waypoints.add(idx, new Point(worldPt));
 
-            // Connect the new pin
             boolean success = circuit.addConnection(source, sourceIdx, connectionStartPin.component(),
                 connectionStartPin.index());
-
             if (success) {
-              // 4. Copy waypoints to the NEW connection
-              // Find the new connection (it's the one we just added)
               for (Wire.PortConnection pc : w.getDestinations()) {
                 if (pc.component == connectionStartPin.component() && pc.inputIndex == connectionStartPin.index()) {
-                  // Copy path up to (and including) the new T-Junction point
-                  for (int k = 0; k <= idx; k++) {
+                  for (int k = 0; k <= idx; k++)
                     pc.waypoints.add(new Point(targetPC.waypoints.get(k)));
-                  }
                   break;
                 }
               }
             }
-
             connectionStartPin = null;
             panel.repaint();
             return;
@@ -426,7 +414,8 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         }
       }
 
-      // Option C: Clicked Empty Space (Cancel)
+      // Clicked empty space while wiring -> Cancel or Place Waypoint?
+      // Currently defaulting to cancel wiring if clicking empty space
       connectionStartPin = null;
       panel.repaint();
       return;
@@ -454,7 +443,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     }
 
-    // Wire Click (Add Waypoint)
+    // Wire Click
     WireSegment clickedWire = hitTester.findWireAt(worldPt);
     if (clickedWire != null) {
       if (selectedWireSegment != null &&
@@ -465,7 +454,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         int idx = hitTester.getWaypointInsertionIndex(clickedWire, worldPt);
         clickedWire.connection().waypoints.add(idx, worldPt);
 
-        // Auto Select New Waypoint
         WaypointRef newWp = new WaypointRef(clickedWire.connection(), worldPt);
         selectedWaypoint = newWp;
         selectedWaypoints.clear();
@@ -503,6 +491,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   @Override
   public void mouseDragged(MouseEvent e) {
+    hasMovedSincePress = true;
 
     if (isPanning) {
       int dx = e.getX() - panStartScreenPt.x;
@@ -531,7 +520,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         pt.setLocation(target);
       } else {
         pt.setLocation(target);
-        // Smart axis snapping
         List<Point> points = selectedWaypoint.connection().waypoints;
         int index = points.indexOf(pt);
         Point prev = null;
@@ -612,7 +600,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       panel.setCursor(Cursor.getDefaultCursor());
     }
     if (selectionRect != null) {
-      finalizeSelectionBox();
+      finaliseSelectionBox();
     }
     isDraggingItems = false;
     initialComponentPositions.clear();
@@ -621,7 +609,13 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   @Override
   public void mouseClicked(MouseEvent e) {
-    if (connectionStartPin == null && !isDraggingItems && componentToPlace == null) {
+    // --- FIX 2: Prevent Interaction if we dragged or are wiring ---
+    if (hasMovedSincePress)
+      return;
+    if (connectionStartPin != null)
+      return; // Don't toggle switch if trying to wire
+
+    if (componentToPlace == null) {
       Point worldPt = getWorldPoint(e);
       if (hitTester.findPinAt(worldPt) != null)
         return;
@@ -630,19 +624,21 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
       Component c = hitTester.findComponentAt(worldPt);
       if (c != null) {
-        // Double Click -> Rename
-        if (e.getClickCount() == 2) {
+        // 1. Double Click -> Rename
+        // --- FIX 1: Don't allow double-click rename on Switches (Interferes with fast
+        // toggling)
+        if (e.getClickCount() == 2 && !(c instanceof Switch)) {
           String newName = JOptionPane.showInputDialog(panel, "Rename Component:", c.getName());
           if (newName != null && !newName.trim().isEmpty()) {
             if (newName.length() > 8)
-              newName = newName.substring(0, 8); // Keep it short
+              newName = newName.substring(0, 8);
             c.setName(newName);
             panel.repaint();
           }
           return;
         }
 
-        // Single Click -> Toggle Switch
+        // 2. Single Click -> Toggle Switch
         if (c instanceof Switch) {
           ((Switch) c).toggle(!((Switch) c).getState());
           panel.repaint();
@@ -713,12 +709,30 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     JMenuItem createItem = new JMenuItem("Create Custom Component");
     createItem.addActionListener(e -> createCustomComponentFromSelection());
     menu.add(createItem);
+
+    // Rename Option
+    JMenuItem renameItem = new JMenuItem("Rename");
+    renameItem.addActionListener(e -> {
+      if (!selectedComponents.isEmpty()) {
+        Component c = selectedComponents.get(0);
+        String newName = JOptionPane.showInputDialog(panel, "Rename Component:", c.getName());
+        if (newName != null && !newName.trim().isEmpty()) {
+          if (newName.length() > 8)
+            newName = newName.substring(0, 8);
+          c.setName(newName);
+          panel.repaint();
+        }
+      }
+    });
+    menu.add(renameItem);
+
     JMenuItem deleteItem = new JMenuItem("Delete Selection");
     deleteItem.addActionListener(e -> deleteSelection());
     menu.add(deleteItem);
     menu.show(panel, x, y);
   }
 
+  // Helpers
   private void createCustomComponentFromSelection() {
     if (selectedComponents.isEmpty())
       return;
@@ -792,7 +806,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     selectionRect.setBounds(x, y, w, h);
   }
 
-  private void finalizeSelectionBox() {
+  private void finaliseSelectionBox() {
     for (Component c : circuit.getComponents()) {
       if (selectionRect.contains(c.getX() + 20, c.getY() + 20)) {
         if (!selectedComponents.contains(c))

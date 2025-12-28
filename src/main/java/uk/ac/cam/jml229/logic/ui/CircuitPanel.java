@@ -108,6 +108,10 @@ public class CircuitPanel extends JPanel {
     interaction.copy();
   }
 
+  public void cut() {
+    interaction.cut();
+  }
+
   public void paste() {
     interaction.paste();
   }

@@ -83,7 +83,12 @@ public class GuiMain {
       editMenu.add(redoItem);
       editMenu.addSeparator();
 
-      // Copy/Paste
+      // Cut/Copy/Paste
+      JMenuItem cutItem = new JMenuItem("Cut");
+      cutItem.setAccelerator(
+          KeyStroke.getKeyStroke(KeyEvent.VK_X, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
+      cutItem.addActionListener(e -> circuitPanel.cut());
+
       JMenuItem copyItem = new JMenuItem("Copy");
       copyItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_C, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
@@ -94,6 +99,7 @@ public class GuiMain {
           KeyStroke.getKeyStroke(KeyEvent.VK_V, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       pasteItem.addActionListener(e -> circuitPanel.paste());
 
+      editMenu.add(cutItem);
       editMenu.add(copyItem);
       editMenu.add(pasteItem);
       editMenu.addSeparator();
@@ -129,9 +135,9 @@ public class GuiMain {
           KeyStroke.getKeyStroke(KeyEvent.VK_0, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       zoomResetItem.addActionListener(e -> circuitPanel.resetZoom());
 
-      // SNAP TO GRID (New Item)
+      // SNAP TO GRID
       JCheckBoxMenuItem snapGridItem = new JCheckBoxMenuItem("Snap to Grid");
-      snapGridItem.setSelected(false); // Default OFF per user description
+      snapGridItem.setSelected(false);
       snapGridItem.addActionListener(e -> {
         circuitPanel.getInteraction().setSnapToGrid(snapGridItem.isSelected());
       });
@@ -171,7 +177,7 @@ public class GuiMain {
       viewMenu.addSeparator();
       viewMenu.add(zoomResetItem);
       viewMenu.addSeparator();
-      viewMenu.add(snapGridItem); // Added here
+      viewMenu.add(snapGridItem);
       viewMenu.add(darkModeItem);
 
       menuBar.add(fileMenu);
@@ -266,7 +272,6 @@ public class GuiMain {
   }
 
   private static void toggleFullScreen(JFrame frame) {
-    // If the frame is visible, dispose of it to change decoration style
     if (frame.isVisible()) {
       frame.dispose();
     }
@@ -274,10 +279,6 @@ public class GuiMain {
     isFullScreen = !isFullScreen;
 
     if (isFullScreen) {
-      // Save previous state only if we were already visible (validating that the size
-      // is real)
-      // Otherwise, the defaults (1280x800) set in main() will be used if user exits
-      // fullscreen.
       if (prevLocation == null && frame.isShowing()) {
         prevLocation = frame.getLocation();
         prevSize = frame.getSize();
@@ -299,7 +300,6 @@ public class GuiMain {
       frame.setUndecorated(false);
       frame.setExtendedState(JFrame.NORMAL);
 
-      // Restore previous size/location
       if (prevLocation != null)
         frame.setLocation(prevLocation);
       if (prevSize != null)

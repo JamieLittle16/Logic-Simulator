@@ -98,7 +98,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     history.pushState(this.circuit);
   }
 
-  // --- Copy / Paste Logic ---
+  // --- Copy / Paste / Cut Logic ---
 
   public void copy() {
     if (selectedComponents.isEmpty())
@@ -109,6 +109,11 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       temp.addComponent(c);
     }
     clipboardString = StorageManager.saveToString(temp, null);
+  }
+
+  public void cut() {
+    copy();
+    deleteSelection();
   }
 
   public void paste() {
@@ -462,12 +467,10 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       Point target = getWorldPoint(e);
 
       if (snapToGrid) {
-        // Simple Snap Logic for Waypoints
         target.x = Math.round(target.x / 20.0f) * 20;
         target.y = Math.round(target.y / 20.0f) * 20;
         pt.setLocation(target);
       } else {
-        // Standard Behavior with smart axis snapping
         pt.setLocation(target);
 
         List<Point> points = selectedWaypoint.connection().waypoints;
@@ -562,7 +565,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     if (connectionStartPin == null && !isDraggingItems && componentToPlace == null) {
       Point worldPt = getWorldPoint(e);
 
-      // Check for Pin/Waypoint clicks FIRST to avoid toggling switch when wiring
       if (hitTester.findPinAt(worldPt) != null)
         return;
       if (hitTester.findWaypointAt(worldPt) != null)
@@ -587,7 +589,11 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       panel.repaint();
     }
 
-    // ROTATION LOGIC
+    // CUT SHORTCUT
+    if (e.isControlDown() && e.getKeyCode() == KeyEvent.VK_X) {
+      cut();
+    }
+
     if (e.getKeyCode() == KeyEvent.VK_R) {
       if (componentToPlace != null) {
         componentToPlace.rotate();
@@ -600,12 +606,10 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       }
     }
 
-    // --- ARROW MOVEMENT LOGIC ---
     int dx = 0;
     int dy = 0;
     int step = snapToGrid ? 20 : 1;
 
-    // Allow Shift to speed up movement if grid snap is OFF (1px -> 10px)
     if (!snapToGrid && e.isShiftDown()) {
       step = 10;
     }
@@ -625,7 +629,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         break;
     }
 
-    // Move Selection
     if (dx != 0 || dy != 0) {
       if (!selectedComponents.isEmpty() || !selectedWaypoints.isEmpty()) {
         history.pushState(circuit);
@@ -653,15 +656,24 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   private void showContextMenu(int x, int y) {
     JPopupMenu menu = new JPopupMenu();
+
+    // Added Cut
+    JMenuItem cutItem = new JMenuItem("Cut");
+    cutItem.addActionListener(e -> cut());
+    menu.add(cutItem);
+
     JMenuItem copyItem = new JMenuItem("Copy");
     copyItem.addActionListener(e -> copy());
     menu.add(copyItem);
+
     JMenuItem createItem = new JMenuItem("Create Custom Component");
     createItem.addActionListener(e -> createCustomComponentFromSelection());
     menu.add(createItem);
+
     JMenuItem deleteItem = new JMenuItem("Delete Selection");
     deleteItem.addActionListener(e -> deleteSelection());
     menu.add(deleteItem);
+
     menu.show(panel, x, y);
   }
 
@@ -745,10 +757,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
           selectedComponents.add(c);
       }
     }
-    // Note: We are currently NOT selecting waypoints in the box selector
-    // based on your instruction to "fix it later".
-    // If you want that, uncomment the logic from the previous turn.
-
     selectionRect = null;
   }
 

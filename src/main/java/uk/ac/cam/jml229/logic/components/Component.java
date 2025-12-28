@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-import uk.ac.cam.jml229.logic.model.Wire;
+import uk.ac.cam.jml229.logic.core.Wire;
 
 public abstract class Component {
   private String name;

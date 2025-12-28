@@ -25,7 +25,7 @@ java {
 jar {
     manifest {
         attributes(
-            'Main-Class': 'uk.ac.cam.jml229.logic.ui.GuiMain' 
+            'Main-Class': 'uk.ac.cam.jml229.logic.app.GuiMain' 
         )
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -36,5 +36,5 @@ jar {
 }
 
 application {
-    mainClass = 'uk.ac.cam.jml229.logic.ui.GuiMain'
+    mainClass = 'uk.ac.cam.jml229.logic.app.GuiMain'
 }

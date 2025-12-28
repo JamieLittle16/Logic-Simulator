@@ -1,7 +1,7 @@
 package uk.ac.cam.jml229.logic.io;
 
 import java.util.Stack;
-import uk.ac.cam.jml229.logic.model.Circuit;
+import uk.ac.cam.jml229.logic.core.Circuit;
 
 public class HistoryManager {
 

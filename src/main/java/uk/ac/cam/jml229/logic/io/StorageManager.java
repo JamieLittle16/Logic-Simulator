@@ -7,8 +7,8 @@ import java.awt.Point;
 
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
-import uk.ac.cam.jml229.logic.model.Circuit;
-import uk.ac.cam.jml229.logic.model.Wire;
+import uk.ac.cam.jml229.logic.core.Circuit;
+import uk.ac.cam.jml229.logic.core.Wire;
 
 public class StorageManager {
 

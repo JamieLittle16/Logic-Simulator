@@ -4,6 +4,10 @@ import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import uk.ac.cam.jml229.logic.components.gates.*;
+import uk.ac.cam.jml229.logic.components.io.*;
+import uk.ac.cam.jml229.logic.components.seq.*;
+
 /**
  * Central "Source of Truth" for all standard component types.
  * Handles mapping between Save IDs, Display Names, and Java Classes.

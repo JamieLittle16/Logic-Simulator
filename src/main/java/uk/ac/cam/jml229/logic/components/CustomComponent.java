@@ -2,8 +2,9 @@ package uk.ac.cam.jml229.logic.components;
 
 import java.util.ArrayList;
 import java.util.List;
-import uk.ac.cam.jml229.logic.model.Circuit;
-import uk.ac.cam.jml229.logic.model.Wire;
+import uk.ac.cam.jml229.logic.core.Circuit;
+import uk.ac.cam.jml229.logic.core.Wire;
+import uk.ac.cam.jml229.logic.components.io.*;
 
 public class CustomComponent extends Component {
 

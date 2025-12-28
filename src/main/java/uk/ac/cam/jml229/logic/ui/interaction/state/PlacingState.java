@@ -5,25 +5,23 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.ui.interaction.CircuitInteraction;
-import uk.ac.cam.jml229.logic.ui.interaction.state.IdleState;
-import uk.ac.cam.jml229.logic.ui.interaction.state.InteractionState;
 
 public class PlacingState implements InteractionState {
 
   private final CircuitInteraction ctx;
   private Component ghost;
+  private boolean isVisible = false;
 
   public PlacingState(CircuitInteraction ctx, Component template) {
     this.ctx = ctx;
-    // Create a detached copy for the "Ghost"
     this.ghost = template.makeCopy();
-    // Link it to the Context so the Renderer can see it
-    ctx.componentToPlace = this.ghost;
+    // Don't show ghost yet (it would be at 0,0).
+    // Wait for first mouse move/entry.
+    ctx.componentToPlace = null;
   }
 
   @Override
   public void onExit() {
-    // Clean up when leaving this state
     ctx.componentToPlace = null;
     ctx.getPanel().repaint();
   }
@@ -41,6 +39,12 @@ public class PlacingState implements InteractionState {
   }
 
   private void updateGhostPosition(MouseEvent e) {
+    // Once got a mouse event, we know where to put it
+    if (!isVisible) {
+      isVisible = true;
+      ctx.componentToPlace = ghost;
+    }
+
     Point p = ctx.getWorldPoint(e);
     if (ctx.isSnapToGrid()) {
       p.x = Math.round(p.x / 20.0f) * 20;
@@ -51,19 +55,20 @@ public class PlacingState implements InteractionState {
 
   @Override
   public void mousePressed(MouseEvent e) {
-    // Place the component
-    ctx.saveHistory();
+    if (!isVisible)
+      return; // Don't place if we haven't even entered the screen
 
-    // We add the *current* ghost instance to the circuit
+    ctx.saveHistory();
     ctx.getCircuit().addComponent(ghost);
 
-    // If CTRL is held, we stay in PlacingState but need a NEW ghost
+    // Prevent next click from triggering underlying components (like switches)
+    ctx.setPreventNextClick(true);
+
     if (e.isControlDown()) {
-      ghost = ghost.makeCopy(); // Create new ghost for next placement
-      ctx.componentToPlace = ghost; // Update context
-      updateGhostPosition(e); // Move to current mouse pos
+      ghost = ghost.makeCopy();
+      ctx.componentToPlace = ghost;
+      updateGhostPosition(e);
     } else {
-      // Otherwise, return to Idle
       ctx.setState(new IdleState(ctx));
     }
     ctx.getPanel().repaint();
@@ -84,7 +89,6 @@ public class PlacingState implements InteractionState {
     }
   }
 
-  // Unused events
   @Override
   public void mouseReleased(MouseEvent e) {
   }
@@ -92,6 +96,4 @@ public class PlacingState implements InteractionState {
   @Override
   public void mouseClicked(MouseEvent e) {
   }
-
-  // REMOVED: keyReleased and keyTyped (not in InteractionState interface)
 }

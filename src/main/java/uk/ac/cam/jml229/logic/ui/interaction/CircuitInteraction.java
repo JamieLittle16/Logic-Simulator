@@ -30,21 +30,23 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   private InteractionState currentState;
 
-  // --- SHARED VIEW STATE (Accessed by Renderer) ---
+  // --- SHARED VIEW STATE ---
   private final List<Component> selectedComponents = new ArrayList<>();
   private final List<WaypointRef> selectedWaypoints = new ArrayList<>();
   private WireSegment selectedWireSegment = null;
 
-  // Transient state for rendering (Updated by States)
+  // Transient state for rendering
   public Pin hoveredPin = null;
   public WireSegment hoveredWire = null;
   public WaypointRef hoveredWaypoint = null;
   public Pin connectionStartPin = null;
   public Point currentMousePoint = null;
   public Rectangle selectionRect = null;
-  public Component componentToPlace = null; // Ghost component
+  public Component componentToPlace = null;
 
+  // Flags
   private boolean snapToGrid = false;
+  private boolean preventNextClick = false;
   private static String clipboardString = null;
 
   public CircuitInteraction(Circuit circuit, CircuitPanel panel, CircuitRenderer renderer) {
@@ -64,6 +66,59 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     if (currentState != null)
       currentState.onEnter();
     panel.repaint();
+  }
+
+  // --- Helper: Centralised Hover Logic ---
+  public void updateHoverState(MouseEvent e) {
+    currentMousePoint = getWorldPoint(e);
+    Point p = currentMousePoint;
+
+    // Reset all
+    hoveredPin = null;
+    hoveredWire = null;
+    hoveredWaypoint = null;
+
+    // Check Pins
+    hoveredPin = hitTester.findPinAt(p);
+    if (hoveredPin != null) {
+      panel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+      return;
+    }
+
+    // Check Waypoints
+    hoveredWaypoint = hitTester.findWaypointAt(p);
+    if (hoveredWaypoint != null) {
+      panel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+      return;
+    }
+
+    // Check Wires
+    hoveredWire = hitTester.findWireAt(p);
+    if (hoveredWire != null) {
+      panel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+      return;
+    }
+
+    // Check Components (for cursor only, Renderer handles body highlight via
+    // selection usually)
+    Component c = hitTester.findComponentAt(p);
+    if (c != null) {
+      panel.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+    } else {
+      panel.setCursor(Cursor.getDefaultCursor());
+    }
+  }
+
+  public void setPreventNextClick(boolean prevent) {
+    this.preventNextClick = prevent;
+  }
+
+  public boolean shouldPreventNextClick() {
+    if (preventNextClick) {
+      preventNextClick = false; // Consume it
+      return true;
+    }
+    return false;
   }
 
   // --- Events ---
@@ -126,9 +181,8 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       return;
     saveHistory();
 
-    for (WaypointRef wp : selectedWaypoints) {
+    for (WaypointRef wp : selectedWaypoints)
       wp.connection().waypoints.remove(wp.point());
-    }
     selectedWaypoints.clear();
 
     if (selectedWireSegment != null) {
@@ -136,9 +190,8 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       selectedWireSegment = null;
     }
 
-    for (Component c : new ArrayList<>(selectedComponents)) {
+    for (Component c : new ArrayList<>(selectedComponents))
       circuit.removeComponent(c);
-    }
     selectedComponents.clear();
     panel.repaint();
   }
@@ -167,10 +220,9 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
       if (pasted.getComponents().isEmpty())
         return;
 
-      if (palette != null) {
+      if (palette != null)
         for (CustomComponent cc : result.customTools())
           palette.addCustomTool(cc);
-      }
 
       clearSelection();
       for (Component c : pasted.getComponents()) {
@@ -205,9 +257,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     history.pushState(circuit);
   }
 
-  // --- Accessors (Used by Renderer & States) ---
-
-  // Core
+  // --- Accessors ---
   public Circuit getCircuit() {
     return circuit;
   }
@@ -228,7 +278,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     return palette;
   }
 
-  // Selection
   public List<Component> getSelectedComponents() {
     return selectedComponents;
   }
@@ -268,7 +317,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     selectedWireSegment = null;
   }
 
-  // Settings
   public void setSnapToGrid(boolean b) {
     this.snapToGrid = b;
   }
@@ -296,7 +344,6 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     return new Point(wx, wy);
   }
 
-  // --- View State Getters (For CircuitRenderer) ---
   public Pin getHoveredPin() {
     return hoveredPin;
   }

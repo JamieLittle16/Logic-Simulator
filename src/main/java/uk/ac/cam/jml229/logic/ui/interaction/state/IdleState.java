@@ -2,14 +2,11 @@ package uk.ac.cam.jml229.logic.ui.interaction.state;
 
 import java.awt.*;
 import java.awt.event.*;
-import javax.swing.*;
 import java.awt.geom.Point2D;
+import javax.swing.*;
 
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.components.io.Switch;
-import uk.ac.cam.jml229.logic.components.CustomComponent;
-import uk.ac.cam.jml229.logic.core.Circuit;
-import uk.ac.cam.jml229.logic.core.Wire;
 import uk.ac.cam.jml229.logic.ui.interaction.*;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.Pin;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.WireSegment;
@@ -29,11 +26,17 @@ public class IdleState implements InteractionState {
   }
 
   @Override
+  public void mouseMoved(MouseEvent e) {
+    ctx.updateHoverState(e);
+    ctx.getPanel().repaint();
+  }
+
+  @Override
   public void mousePressed(MouseEvent e) {
     ctx.getPanel().requestFocusInWindow();
     Point worldPt = ctx.getWorldPoint(e);
 
-    // Pan (Middle Click or Alt+Left)
+    // Pan
     if (SwingUtilities.isMiddleMouseButton(e) || (SwingUtilities.isLeftMouseButton(e) && e.isAltDown())) {
       isPanning = true;
       panStartScreen = e.getPoint();
@@ -42,41 +45,34 @@ public class IdleState implements InteractionState {
       return;
     }
 
-    // Right Click (Context Menu)
+    // Right Click
     if (SwingUtilities.isRightMouseButton(e)) {
-      if (!ctx.getSelection().isEmpty()) {
+      if (!ctx.getSelection().isEmpty())
         showContextMenu(e.getX(), e.getY());
-      }
       return;
     }
 
     // Hit Testing
-    // A. Pin -> Start Wiring
     Pin pin = ctx.getHitTester().findPinAt(worldPt);
     if (pin != null) {
-      ctx.setState(new WiringState(ctx, pin));
+      ctx.setState(new WiringState(ctx, pin, worldPt)); // Pass worldPt for immediate preview
       return;
     }
 
-    // Waypoint -> Select
     WaypointRef wp = ctx.getHitTester().findWaypointAt(worldPt);
     if (wp != null) {
       ctx.clearSelection();
       ctx.getSelectedWaypoints().add(wp);
-      // Switch to Dragging State immediately
       ctx.setState(new DraggingState(ctx, worldPt));
       return;
     }
 
-    // Wire -> Select or Add Waypoint
     WireSegment wireSeg = ctx.getHitTester().findWireAt(worldPt);
     if (wireSeg != null) {
       if (ctx.getSelectedWire() != null && ctx.getSelectedWire().wire() == wireSeg.wire()) {
-        // Second click on selected wire -> Add Waypoint
         ctx.saveHistory();
         int idx = ctx.getHitTester().getWaypointInsertionIndex(wireSeg, worldPt);
         wireSeg.connection().waypoints.add(idx, worldPt);
-        // Switch to dragging that new waypoint
         WaypointRef newWp = new WaypointRef(wireSeg.connection(), worldPt);
         ctx.clearSelection();
         ctx.getSelectedWaypoints().add(newWp);
@@ -89,16 +85,14 @@ public class IdleState implements InteractionState {
       return;
     }
 
-    // Component -> Select or Drag
     Component c = ctx.getHitTester().findComponentAt(worldPt);
     if (c != null) {
       handleSelection(e, c);
-      // Switch to Dragging State
       ctx.setState(new DraggingState(ctx, worldPt));
       return;
     }
 
-    // Empty Space -> Box Selection
+    // Empty Space
     ctx.clearSelection();
     ctx.setState(new SelectionState(ctx, worldPt));
   }
@@ -123,6 +117,7 @@ public class IdleState implements InteractionState {
       int dx = e.getX() - panStartScreen.x;
       int dy = e.getY() - panStartScreen.y;
       ctx.getPanel().setPan(panStartOffset.x + dx, panStartOffset.y + dy);
+      ctx.getPanel().repaint();
     }
   }
 
@@ -136,31 +131,20 @@ public class IdleState implements InteractionState {
 
   @Override
   public void mouseClicked(MouseEvent e) {
+    // Prevent clicking if just dragged or placed
+    if (ctx.shouldPreventNextClick())
+      return;
+
     Point worldPt = ctx.getWorldPoint(e);
     Component c = ctx.getHitTester().findComponentAt(worldPt);
 
     if (c != null) {
-      // Toggle Switch (Single Click)
       if (c instanceof Switch) {
         ((Switch) c).toggle(!((Switch) c).getState());
         ctx.getPanel().repaint();
-      }
-      // Rename (Double Click - EXCEPT Switches)
-      else if (e.getClickCount() == 2) {
+      } else if (e.getClickCount() == 2) {
         renameComponent(c);
       }
-    }
-  }
-
-  @Override
-  public void mouseMoved(MouseEvent e) {
-    // Cursor updates logic (Hand cursor over interactables)
-    Point worldPt = ctx.getWorldPoint(e);
-    if (ctx.getHitTester().findPinAt(worldPt) != null ||
-        ctx.getHitTester().findComponentAt(worldPt) != null) {
-      ctx.getPanel().setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-    } else {
-      ctx.getPanel().setCursor(Cursor.getDefaultCursor());
     }
   }
 

@@ -12,13 +12,15 @@ public class WiringState implements InteractionState {
 
   private final CircuitInteraction ctx;
 
-  public WiringState(CircuitInteraction ctx, Pin startPin) {
+  public WiringState(CircuitInteraction ctx, Pin startPin, Point initialMousePt) {
     this.ctx = ctx;
     ctx.connectionStartPin = startPin;
+    ctx.currentMousePoint = initialMousePt;
   }
 
   @Override
   public void mouseMoved(MouseEvent e) {
+    ctx.updateHoverState(e);
     ctx.currentMousePoint = ctx.getWorldPoint(e);
     ctx.getPanel().repaint();
   }
@@ -36,7 +38,6 @@ public class WiringState implements InteractionState {
     // Clicked a Pin -> Connect
     if (endPin != null) {
       Pin start = ctx.connectionStartPin;
-      // Only connect Input to Output
       if (start.isInput() != endPin.isInput()) {
         ctx.saveHistory();
         Pin source = start.isInput() ? endPin : start;
@@ -47,10 +48,9 @@ public class WiringState implements InteractionState {
       return;
     }
 
-    // Clicked a Wire (T-Junction) -> Connect
+    // Clicked a Wire (T-Junction)
     WireSegment seg = ctx.getHitTester().findWireAt(worldPt);
     if (seg != null && ctx.connectionStartPin.isInput()) {
-      // Can only branch FROM a wire INTO an input pin
       connectTunction(seg, worldPt);
       finish();
       return;
@@ -65,8 +65,6 @@ public class WiringState implements InteractionState {
     Component source = w.getSource();
     if (source == null)
       return;
-
-    // Find source index
     int srcIdx = -1;
     for (int i = 0; i < source.getOutputCount(); i++) {
       if (source.getOutputWire(i) == w) {
@@ -78,17 +76,13 @@ public class WiringState implements InteractionState {
       return;
 
     ctx.saveHistory();
-
-    // Add waypoint to existing wire to create "T" shape
     int idx = ctx.getHitTester().getWaypointInsertionIndex(seg, pt);
     seg.connection().waypoints.add(idx, new Point(pt));
 
-    // Connect new pin
     boolean ok = ctx.getCircuit().addConnection(source, srcIdx, ctx.connectionStartPin.component(),
         ctx.connectionStartPin.index());
 
     if (ok) {
-      // Copy path to new connection
       for (Wire.PortConnection pc : w.getDestinations()) {
         if (pc.component == ctx.connectionStartPin.component() && pc.inputIndex == ctx.connectionStartPin.index()) {
           for (int k = 0; k <= idx; k++)
@@ -101,6 +95,7 @@ public class WiringState implements InteractionState {
 
   private void finish() {
     ctx.connectionStartPin = null;
+    ctx.setPreventNextClick(true); // Prevent immediate interaction with what was just clicked
     ctx.setState(new IdleState(ctx));
   }
 

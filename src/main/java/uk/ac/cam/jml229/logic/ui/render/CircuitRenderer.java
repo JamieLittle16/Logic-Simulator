@@ -75,8 +75,7 @@ public class CircuitRenderer {
   private void setupGraphics(Graphics2D g2) {
     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
     g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-    g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_DEFAULT); // Default for
-                                                                                                 // performance
+    g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_DEFAULT);
   }
 
   private Pin activePin(Pin hovered, Pin start) {
@@ -144,12 +143,11 @@ public class CircuitRenderer {
     for (Component c : components) {
       boolean isSelected = selectedComponents.contains(c);
 
-      // Delegation!
+      // Delegation
       componentPainter.drawStubs(g2, c);
       componentPainter.drawComponent(g2, c, isSelected, true);
 
-      // Delegation for pin drawing (loops logic remains here, primitive drawing is
-      // delegated)
+      // Draw Pins logic
       if (!(c instanceof OutputProbe)) {
         int outCount = c.getOutputCount();
         for (int i = 0; i < outCount; i++) {
@@ -196,6 +194,10 @@ public class CircuitRenderer {
 
   public void drawComponentBody(Graphics2D g2, Component c, boolean sel, boolean label) {
     componentPainter.drawComponent(g2, c, sel, label);
+  }
+
+  public void drawComponentStubs(Graphics2D g2, Component c) {
+    componentPainter.drawStubs(g2, c);
   }
 
   public Rectangle getComponentBounds(Component c) {

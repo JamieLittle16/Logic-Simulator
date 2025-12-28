@@ -34,9 +34,6 @@ public class CustomComponent extends Component {
     // Configure External Pins
     setInputCount(internalInputs.size());
 
-    // --- FIX: Event-Driven Outputs ---
-    // Instead of polling outputs in update(), we listen for when they change.
-    // This handles the propagation delay correctly.
     for (int i = 0; i < internalOutputs.size(); i++) {
       final int index = i;
       OutputProbe probe = internalOutputs.get(i);
@@ -78,7 +75,5 @@ public class CustomComponent extends Component {
       }
     }
 
-    // Removed: "Bridge Out" loop.
-    // We no longer manually push outputs here, because they are not ready yet.
   }
 }

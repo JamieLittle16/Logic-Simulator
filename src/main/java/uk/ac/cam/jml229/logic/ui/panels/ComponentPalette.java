@@ -111,13 +111,36 @@ public class ComponentPalette extends JPanel implements Scrollable {
           g2.setColor(new Color(100, 150, 255));
         g2.drawRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 15, 15);
 
-        // Draw Icon
+        // --- DYNAMIC SCALING ---
         AffineTransform oldTx = g2.getTransform();
-        double scale = Math.min((getHeight() - 20.0) / 60.0, (getWidth() - 20.0) / 60.0);
-        g2.translate(getWidth() / 2, getHeight() / 2);
+
+        // Calculate Bounds
+        Rectangle bounds = renderer.getComponentBounds(prototype);
+        int compW = bounds.width;
+        int compH = bounds.height;
+
+        // Calculate Scale
+        double availableW = getWidth() - 25.0; // Padding
+        double availableH = getHeight() - 25.0;
+
+        // Fit width/height, ensuring we don't scale up too much (max 1.5x)
+        double scaleX = availableW / compW;
+        double scaleY = availableH / compH;
+        double scale = Math.min(scaleX, scaleY);
+        scale = Math.min(scale, 1.5);
+
+        // Center and Draw
+        g2.translate(getWidth() / 2.0, getHeight() / 2.0);
         g2.scale(scale, scale);
-        g2.translate(-25 - prototype.getX(), -20 - prototype.getY()); // Center approx
+
+        // Center the component's true center at (0,0)
+        double centerX = bounds.x + bounds.width / 2.0;
+        double centerY = bounds.y + bounds.height / 2.0;
+        g2.translate(-centerX, -centerY);
+
+        renderer.drawComponentStubs(g2, prototype); // Draw legs/pins
         renderer.drawComponentBody(g2, prototype, false, false);
+
         g2.setTransform(oldTx);
       }
     };
@@ -131,7 +154,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
     button.addMouseListener(new MouseAdapter() {
       @Override
       public void mousePressed(MouseEvent e) {
-        // --- UPDATED: Create fresh copy via Registry or Prototype ---
+        // Create fresh copy via Registry or Prototype
         Component newComp;
         if (prototype instanceof CustomComponent) {
           newComp = prototype.makeCopy();
@@ -161,7 +184,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
       add(button);
   }
 
-  // Scrollable impl...
+  // Scrollable implementation
   @Override
   public Dimension getPreferredScrollableViewportSize() {
     return getPreferredSize();

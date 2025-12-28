@@ -27,6 +27,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
     addLabel("IO / Probes");
     addTool(new Switch("Switch"));
     addTool(new OutputProbe("Light"));
+    addTool(new SevenSegmentDisplay("7Seg"));
 
     addLabel("Basic Gates");
     addTool(new AndGate("AND"));
@@ -35,6 +36,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
     addLabel("Sequential");
     addTool(new Clock("CLK"));
+    addTool(new DFlipFlop("D-FF"));
 
     addLabel("Advanced");
     addTool(new NandGate("NAND"));
@@ -206,6 +208,10 @@ public class ComponentPalette extends JPanel implements Scrollable {
       return new BufferGate("BUF");
     if (prototype instanceof Clock)
       return new Clock("CLK");
+    if (prototype instanceof DFlipFlop)
+      return new DFlipFlop("D-FF");
+    if (prototype instanceof SevenSegmentDisplay)
+      return new SevenSegmentDisplay("7Seg");
     if (prototype instanceof CustomComponent)
       return prototype.makeCopy();
     return null;

@@ -40,29 +40,34 @@ public class ComponentPainter {
       drawNorGate(g2, c, x, y, sel);
     else if (c instanceof BufferGate)
       drawBufferGate(g2, c, x, y, sel);
+
+    // SEQUENTIAL
     else if (c instanceof DFlipFlop)
       drawDFlipFlop(g2, (DFlipFlop) c, x, y, sel);
+    else if (c instanceof JKFlipFlop)
+      drawJKFlipFlop(g2, (JKFlipFlop) c, x, y, sel);
+    else if (c instanceof TFlipFlop)
+      drawTFlipFlop(g2, (TFlipFlop) c, x, y, sel);
+
+    // DISPLAYS
     else if (c instanceof SevenSegmentDisplay)
       drawSevenSegment(g2, (SevenSegmentDisplay) c, x, y, sel);
+    else if (c instanceof HexDisplay)
+      drawHexDisplay(g2, (HexDisplay) c, x, y, sel);
     else
       drawGenericBox(g2, c, x, y, sel);
 
+    // Labels
     if (drawLabel && !(c instanceof CustomComponent) && !(c instanceof DFlipFlop)
-        && !(c instanceof SevenSegmentDisplay)) {
+        && !(c instanceof JKFlipFlop) && !(c instanceof TFlipFlop)
+        && !(c instanceof SevenSegmentDisplay) && !(c instanceof HexDisplay)) {
       g2.setColor(Theme.TEXT_COLOR);
       g2.setFont(new Font(Font.DIALOG, Font.PLAIN, 11));
       FontMetrics fm = g2.getFontMetrics();
       String name = c.getName();
       int tw = fm.stringWidth(name);
-      int textX = x + (dim.width - tw) / 2;
-      int textY = y - 5;
-
-      AffineTransform rotatedTx = g2.getTransform();
-      g2.rotate(Math.toRadians(-c.getRotation() * 90), cx, cy);
-      g2.drawString(name, textX, textY);
-      g2.setTransform(rotatedTx);
+      g2.drawString(name, x + (dim.width - tw) / 2, y - 5);
     }
-
     g2.setTransform(oldTx);
   }
 
@@ -162,15 +167,21 @@ public class ComponentPainter {
   public Dimension getComponentSize(Component c) {
     int w = 50;
     int h = 40;
-
-    if (c instanceof DFlipFlop) {
-      // FIX: Make D-FF Compact (Standard Gate Size)
+    if (c instanceof DFlipFlop || c instanceof TFlipFlop) {
       w = 40;
       h = 40;
-    } else if (c instanceof SevenSegmentDisplay) {
+    } else if (c instanceof JKFlipFlop) {
+      w = 40;
+      h = 60;
+    } // JK needs 3 inputs, so 60px tall
+    else if (c instanceof SevenSegmentDisplay) {
       w = 60;
-      h = 160; // Needs 160px for 8 input pins
-    } else {
+      h = 160;
+    } else if (c instanceof HexDisplay) {
+      w = 60;
+      h = 80;
+    } // Hex only needs 4 inputs
+    else {
       int inputCount = getInputCount(c);
       int outputCount = c.getOutputCount();
       int maxPins = Math.max(inputCount, outputCount);
@@ -261,11 +272,42 @@ public class ComponentPainter {
     g2.fillOval(x + 10, y + 8, 12, 8);
   }
 
-  // --- FIX: Compact D-FlipFlop ---
+  // --- DRAWERS ---
+
   private void drawDFlipFlop(Graphics2D g2, DFlipFlop c, int x, int y, boolean sel) {
-    // 1. Draw Generic Box (Now 40x40)
-    int w = 40;
-    int h = 40;
+    drawFlipFlopBase(g2, c, x, y, 40, 40, sel);
+    g2.drawString("D", x + 4, y + 13);
+    drawClockTri(g2, x, y + 30);
+    g2.drawString("Q", x + 28, y + 13);
+    g2.drawString("!Q", x + 25, y + 33);
+  }
+
+  private void drawTFlipFlop(Graphics2D g2, TFlipFlop c, int x, int y, boolean sel) {
+    drawFlipFlopBase(g2, c, x, y, 40, 40, sel);
+    g2.drawString("T", x + 4, y + 13);
+    drawClockTri(g2, x, y + 30);
+    g2.drawString("Q", x + 28, y + 13);
+    g2.drawString("!Q", x + 25, y + 33);
+  }
+
+  private void drawJKFlipFlop(Graphics2D g2, JKFlipFlop c, int x, int y, boolean sel) {
+    // JK is taller (60px) for 3 inputs
+    drawFlipFlopBase(g2, c, x, y, 40, 60, sel);
+    g2.drawString("J", x + 4, y + 13);
+    drawClockTri(g2, x, y + 30);
+    g2.drawString("K", x + 4, y + 53);
+
+    // Outputs centered
+    g2.drawString("Q", x + 28, y + 13);
+    g2.drawString("!Q", x + 25, y + 53); // Or maybe closer?
+  }
+
+  private void drawClockTri(Graphics2D g2, int x, int y) {
+    g2.drawLine(x, y - 4, x + 6, y);
+    g2.drawLine(x + 6, y, x, y + 4);
+  }
+
+  private void drawFlipFlopBase(Graphics2D g2, Component c, int x, int y, int w, int h, boolean sel) {
     if (sel) {
       g2.setColor(Theme.SELECTION_BORDER);
       g2.setStroke(new BasicStroke(5));
@@ -276,72 +318,49 @@ public class ComponentPainter {
     g2.setColor(Theme.COMP_BORDER);
     g2.setStroke(new BasicStroke(2));
     g2.drawRect(x, y, w, h);
-
-    // 2. Add Name Header if desired, or just labels
-    // A 40px box is too small for a header bar, so we just use labels
-
     g2.setColor(Theme.TEXT_COLOR);
     g2.setFont(new Font("SansSerif", Font.PLAIN, 10));
-
-    // Adjusted coordinates for 40x40 box
-    // Input 0 (D) at y+10
-    // Input 1 (Clk) at y+30
-    g2.drawString("D", x + 4, y + 13);
-
-    // Clock Triangle
-    int triY = y + 30;
-    g2.drawLine(x, triY - 4, x + 6, triY);
-    g2.drawLine(x + 6, triY, x, triY + 4);
-
-    // Outputs
-    g2.drawString("Q", x + 28, y + 13);
-    g2.drawString("!Q", x + 25, y + 33);
   }
 
-  // --- FIX: 7-Segment with Full Background ---
+  // --- Displays ---
   private void drawSevenSegment(Graphics2D g2, SevenSegmentDisplay c, int x, int y, boolean sel) {
-    int w = 60;
-    int h = 160;
+    drawDisplayImpl(g2, x, y, 60, 160, sel, c::isSegmentOn);
+  }
 
+  private void drawHexDisplay(Graphics2D g2, HexDisplay c, int x, int y, boolean sel) {
+    drawDisplayImpl(g2, x, y, 60, 80, sel, c::isSegmentOn);
+  }
+
+  private interface SegmentChecker {
+    boolean isOn(int idx);
+  }
+
+  private void drawDisplayImpl(Graphics2D g2, int x, int y, int w, int h, boolean sel, SegmentChecker check) {
     if (sel) {
       g2.setColor(Theme.SELECTION_BORDER);
       g2.setStroke(new BasicStroke(5));
       g2.drawRect(x, y, w, h);
     }
-
-    // 1. Draw Full Package Body (Connects to all pins)
-    g2.setColor(new Color(20, 20, 20)); // Almost black
+    g2.setColor(new Color(20, 20, 20));
     g2.fillRect(x, y, w, h);
     g2.setColor(Color.GRAY);
     g2.setStroke(new BasicStroke(2));
     g2.drawRect(x, y, w, h);
 
-    // 2. Draw Display Window (Centered)
     int dispW = 50;
     int dispH = 80;
     int dispX = x + (w - dispW) / 2;
     int dispY = y + (h - dispH) / 2;
-
-    g2.setColor(new Color(40, 40, 40)); // Slightly lighter for the screen area
+    g2.setColor(new Color(40, 40, 40));
     g2.fillRect(dispX, dispY, dispW, dispH);
 
-    // 3. Draw Segments
-    int[][] segs = {
-        { 10, 10, 30, 5 }, { 40, 15, 5, 25 }, { 40, 45, 5, 25 },
-        { 10, 70, 30, 5 }, { 5, 45, 5, 25 }, { 5, 15, 5, 25 },
-        { 10, 40, 30, 5 }
-    };
-
+    int[][] segs = { { 10, 10, 30, 5 }, { 40, 15, 5, 25 }, { 40, 45, 5, 25 }, { 10, 70, 30, 5 }, { 5, 45, 5, 25 },
+        { 5, 15, 5, 25 }, { 10, 40, 30, 5 } };
     for (int i = 0; i < 7; i++) {
-      boolean on = c.isSegmentOn(i);
+      boolean on = check.isOn(i);
       g2.setColor(on ? new Color(255, 50, 50) : new Color(60, 0, 0));
       g2.fillRect(dispX + segs[i][0], dispY + segs[i][1], segs[i][2], segs[i][3]);
     }
-
-    // Dot
-    boolean dp = c.isSegmentOn(7);
-    g2.setColor(dp ? new Color(255, 50, 50) : new Color(60, 0, 0));
-    g2.fillOval(dispX + 40, dispY + 70, 5, 5);
   }
 
   private void drawGenericBox(Graphics2D g2, Component c, int x, int y, boolean sel) {

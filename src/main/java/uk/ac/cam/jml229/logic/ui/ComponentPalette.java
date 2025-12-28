@@ -9,7 +9,6 @@ import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.ui.Theme;
 
-// Implement Scrollable to force the panel to track the Viewport width exactly
 public class ComponentPalette extends JPanel implements Scrollable {
 
   private final CircuitInteraction interaction;
@@ -24,25 +23,32 @@ public class ComponentPalette extends JPanel implements Scrollable {
     setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
     setBackground(Theme.PALETTE_BACKGROUND);
 
+    // IO Section
     addLabel("IO / Probes");
     addTool(new Switch("Switch"));
     addTool(new OutputProbe("Light"));
     addTool(new SevenSegmentDisplay("7Seg"));
+    addTool(new HexDisplay("Hex"));
 
+    // Basic Gates
     addLabel("Basic Gates");
     addTool(new AndGate("AND"));
     addTool(new OrGate("OR"));
     addTool(new NotGate("NOT"));
 
-    addLabel("Sequential");
-    addTool(new Clock("CLK"));
-    addTool(new DFlipFlop("D-FF"));
-
+    // Advanced Gates
     addLabel("Advanced");
     addTool(new NandGate("NAND"));
     addTool(new NorGate("NOR"));
     addTool(new XorGate("XOR"));
     addTool(new BufferGate("BUFF"));
+
+    // Sequential Logic
+    addLabel("Sequential");
+    addTool(new Clock("CLK"));
+    addTool(new DFlipFlop("D-FF"));
+    addTool(new JKFlipFlop("JK-FF"));
+    addTool(new TFlipFlop("T-FF"));
   }
 
   public void updateTheme() {
@@ -57,16 +63,11 @@ public class ComponentPalette extends JPanel implements Scrollable {
   private void updateComponentTheme(java.awt.Component c) {
     if (c instanceof JPanel) {
       JPanel p = (JPanel) c;
-      // Section panels are opaque=false, so ignore their bg
-      // Buttons have custom bg logic
       if (p.getComponentCount() > 0 && p.getComponent(0) instanceof JLabel) {
-        // It's a label wrapper
         ((JLabel) p.getComponent(0)).setForeground(Theme.PALETTE_HEADINGS);
       } else if (p.getMouseListeners().length > 0) {
-        // It's a button
         p.setBackground(Theme.BUTTON_BACKGROUND);
       } else {
-        // Recursively update section panels
         for (java.awt.Component child : p.getComponents()) {
           updateComponentTheme(child);
         }
@@ -82,10 +83,8 @@ public class ComponentPalette extends JPanel implements Scrollable {
     JLabel label = new JLabel(text);
     label.setFont(new Font("SansSerif", Font.BOLD, 12));
     label.setForeground(Theme.PALETTE_HEADINGS);
-    // Keep headers left-aligned for visual structure
     label.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 
-    // Add a wrapper to provide left-padding for the label
     JPanel labelPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
     labelPanel.setOpaque(false);
     labelPanel.add(label);
@@ -126,11 +125,10 @@ public class ComponentPalette extends JPanel implements Scrollable {
         g2.setColor(getBackground());
         g2.fillRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 15, 15);
 
-        // Dynamic Border color based on theme
         if (getBackground().equals(Theme.BUTTON_BACKGROUND)) {
           g2.setColor(Theme.BUTTON_BORDER);
         } else {
-          g2.setColor(new Color(100, 150, 255)); // Hover
+          g2.setColor(new Color(100, 150, 255));
         }
         g2.drawRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 15, 15);
 
@@ -206,18 +204,28 @@ public class ComponentPalette extends JPanel implements Scrollable {
       return new NorGate("NOR");
     if (prototype instanceof BufferGate)
       return new BufferGate("BUF");
+
+    // Sequential
     if (prototype instanceof Clock)
       return new Clock("CLK");
     if (prototype instanceof DFlipFlop)
       return new DFlipFlop("D-FF");
+    if (prototype instanceof JKFlipFlop)
+      return new JKFlipFlop("JK-FF");
+    if (prototype instanceof TFlipFlop)
+      return new TFlipFlop("T-FF");
+
+    // Displays
     if (prototype instanceof SevenSegmentDisplay)
       return new SevenSegmentDisplay("7Seg");
+    if (prototype instanceof HexDisplay)
+      return new HexDisplay("Hex");
+
     if (prototype instanceof CustomComponent)
       return prototype.makeCopy();
     return null;
   }
 
-  // --- Scrollable Implementation ---
   @Override
   public Dimension getPreferredScrollableViewportSize() {
     return getPreferredSize();
@@ -243,11 +251,8 @@ public class ComponentPalette extends JPanel implements Scrollable {
     return false;
   }
 
-  // --- Resizing Section Panel ---
   private class SectionPanel extends JPanel {
-
     public SectionPanel() {
-      // Changed to CENTER alignment to center items in available space
       super(new FlowLayout(FlowLayout.CENTER, 5, 5));
       setOpaque(false);
       setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
@@ -255,30 +260,23 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
     @Override
     public Dimension getPreferredSize() {
-      // Calculate width based on PARENT (ComponentPalette) if possible.
       int width = (getParent() != null) ? getParent().getWidth() : getWidth();
       if (width <= 0)
         width = 130;
-
       Insets insets = getInsets();
       int availableWidth = width - insets.left - insets.right;
-
       int n = getComponentCount();
       if (n == 0)
         return new Dimension(width, 0);
-
       int itemW = 100;
       int itemH = 60;
       int hGap = 5;
       int vGap = 5;
-
       int cols = (availableWidth + hGap) / (itemW + hGap);
       if (cols < 1)
         cols = 1;
-
       int rows = (n + cols - 1) / cols;
       int height = rows * (itemH + vGap) + vGap + insets.top + insets.bottom;
-
       return new Dimension(width, height);
     }
 

@@ -1,6 +1,6 @@
 package uk.ac.cam.jml229.logic.components.gates;
 
-public class AndGate extends BinaryGate {
+public class AndGate extends LogicGate {
 
   public AndGate(String name) {
     super(name);
@@ -8,6 +8,7 @@ public class AndGate extends BinaryGate {
 
   @Override
   public void updateLogic() {
-    state = getInputA() && getInputB();
+    // Start with TRUE. If any input is FALSE, the result becomes FALSE.
+    state = reduceInputs(true, (acc, val) -> acc && val);
   }
 }

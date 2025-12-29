@@ -96,11 +96,14 @@ public class ComponentPainter {
     int x = c.getX();
     int y = c.getY();
     int w = dim.width;
+    int h = dim.height;
 
     int outCount = c.getOutputCount();
     boolean hasBubbleOutput = (c instanceof NandGate || c instanceof NorGate);
     for (int i = 0; i < outCount; i++) {
-      int yOffset = (outCount == 1) ? 20 : 10 + (i * 20);
+      // Use center (h/2) if single output, otherwise stack them
+      int yOffset = (outCount == 1) ? h / 2 : 10 + (i * 20);
+
       int startX = hasBubbleOutput ? w + 5 : w;
       if (c instanceof Switch && outCount == 1)
         startX = 40;
@@ -114,12 +117,8 @@ public class ComponentPainter {
     for (int i = 0; i < inputCount; i++) {
       int yOffset = (inputCount == 1) ? 20 : 10 + (i * 20);
       int endX = x;
-
-      // Standard behavior: OR/XOR inputs go "inside" the bounding box slightly
       if (c instanceof OrGate || c instanceof NorGate || c instanceof XorGate)
         endX = x + 8;
-
-      // For Multi-Input Rails, stubs stop at the Rail (x)
       if (inputCount > 2)
         endX = x;
 
@@ -155,7 +154,8 @@ public class ComponentPainter {
       dx = w + 10;
       if (c instanceof DFlipFlop || c instanceof JKFlipFlop || c instanceof TFlipFlop)
         dx = 50;
-      dy = (outCount <= 1) ? 20 : 10 + (index * 20);
+
+      dy = (outCount <= 1) ? h / 2 : 10 + (index * 20);
     } else {
       int inCount = getInputCount(c);
       dx = -10;
@@ -167,7 +167,6 @@ public class ComponentPainter {
     int rx = dx - cx;
     int ry = dy - cy;
 
-    // Rotate point around center
     int rotatedX = rx, rotatedY = ry;
     for (int i = 0; i < c.getRotation(); i++) {
       int temp = rotatedX;

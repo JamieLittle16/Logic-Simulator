@@ -63,7 +63,7 @@ If you wish to modify the code or compile it yourself:
 
 ```bash
 # Clone the repository
-git clone [https://github.com/yourusername/logik.git](https://github.com/yourusername/logik.git)
+git clone https://github.com/JamieLittle16/logik.git
 
 # Build the Runnable JAR (Windows)
 gradlew shadowJar

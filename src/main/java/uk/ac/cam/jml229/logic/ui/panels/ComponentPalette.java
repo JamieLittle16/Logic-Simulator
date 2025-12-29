@@ -41,7 +41,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
   public void updateTheme() {
     setBackground(Theme.PALETTE_BACKGROUND);
-    SwingUtilities.updateComponentTreeUI(this); // Updates children too
+    SwingUtilities.updateComponentTreeUI(this);
     for (java.awt.Component comp : getComponents()) {
       updateComponentTheme(comp);
     }
@@ -51,7 +51,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
     if (c instanceof JPanel p) {
       if (p.getComponentCount() > 0 && p.getComponent(0) instanceof JLabel l) {
         l.setForeground(Theme.PALETTE_HEADINGS);
-      } else if (p.getMouseListeners().length > 0) {
+      } else if (p.getMouseListeners().length > 0 && !(p instanceof SectionPanel)) {
         p.setBackground(Theme.BUTTON_BACKGROUND);
       }
       for (java.awt.Component child : p.getComponents())
@@ -62,22 +62,53 @@ public class ComponentPalette extends JPanel implements Scrollable {
   private void addLabel(String text) {
     if (getComponentCount() > 0)
       add(Box.createRigidArea(new Dimension(0, 15)));
-    JLabel label = new JLabel(text);
+
+    // --- Collapsible Header ---
+    JPanel headerPanel = new JPanel(new BorderLayout());
+    headerPanel.setOpaque(false);
+    headerPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 25));
+    headerPanel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+    // Match alignment with the button grid (CENTER) so they stack vertically
+    headerPanel.setAlignmentX(CENTER_ALIGNMENT);
+
+    // Center the text inside the header
+    JLabel label = new JLabel("\u25BC " + text, SwingConstants.CENTER);
     label.setFont(new Font("SansSerif", Font.BOLD, 12));
     label.setForeground(Theme.PALETTE_HEADINGS);
-    label.setAlignmentX(LEFT_ALIGNMENT);
+    // Removed left border so it centers perfectly
+    // label.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
 
-    JPanel labelPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-    labelPanel.setOpaque(false);
-    labelPanel.add(label);
-    labelPanel.setAlignmentX(CENTER_ALIGNMENT);
-    labelPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-
-    add(labelPanel);
+    headerPanel.add(label, BorderLayout.CENTER);
+    add(headerPanel);
     add(Box.createRigidArea(new Dimension(0, 5)));
 
-    currentSection = new SectionPanel();
-    add(currentSection);
+    // --- Section Content ---
+    SectionPanel section = new SectionPanel();
+    currentSection = section;
+    add(section);
+
+    // --- Toggle Logic ---
+    headerPanel.addMouseListener(new MouseAdapter() {
+      @Override
+      public void mousePressed(MouseEvent e) {
+        boolean isVisible = section.isVisible();
+        section.setVisible(!isVisible);
+        label.setText((!isVisible ? "\u25BC " : "\u25B6 ") + text);
+        revalidate();
+        repaint();
+      }
+
+      @Override
+      public void mouseEntered(MouseEvent e) {
+        label.setForeground(Theme.TEXT_COLOR);
+      }
+
+      @Override
+      public void mouseExited(MouseEvent e) {
+        label.setForeground(Theme.PALETTE_HEADINGS);
+      }
+    });
   }
 
   public void addCustomTool(Component prototype) {
@@ -114,31 +145,26 @@ public class ComponentPalette extends JPanel implements Scrollable {
         // --- DYNAMIC SCALING ---
         AffineTransform oldTx = g2.getTransform();
 
-        // Calculate Bounds
         Rectangle bounds = renderer.getComponentBounds(prototype);
         int compW = bounds.width;
         int compH = bounds.height;
 
-        // Calculate Scale
-        double availableW = getWidth() - 25.0; // Padding
+        double availableW = getWidth() - 25.0;
         double availableH = getHeight() - 25.0;
 
-        // Fit width/height, ensuring we don't scale up too much (max 1.5x)
         double scaleX = availableW / compW;
         double scaleY = availableH / compH;
         double scale = Math.min(scaleX, scaleY);
         scale = Math.min(scale, 1.5);
 
-        // Center and Draw
         g2.translate(getWidth() / 2.0, getHeight() / 2.0);
         g2.scale(scale, scale);
 
-        // Center the component's true center at (0,0)
         double centerX = bounds.x + bounds.width / 2.0;
         double centerY = bounds.y + bounds.height / 2.0;
         g2.translate(-centerX, -centerY);
 
-        renderer.drawComponentStubs(g2, prototype); // Draw legs/pins
+        renderer.drawComponentStubs(g2, prototype);
         renderer.drawComponentBody(g2, prototype, false, false);
 
         g2.setTransform(oldTx);
@@ -154,7 +180,6 @@ public class ComponentPalette extends JPanel implements Scrollable {
     button.addMouseListener(new MouseAdapter() {
       @Override
       public void mousePressed(MouseEvent e) {
-        // Create fresh copy via Registry or Prototype
         Component newComp;
         if (prototype instanceof CustomComponent) {
           newComp = prototype.makeCopy();
@@ -184,7 +209,6 @@ public class ComponentPalette extends JPanel implements Scrollable {
       add(button);
   }
 
-  // Scrollable implementation
   @Override
   public Dimension getPreferredScrollableViewportSize() {
     return getPreferredSize();
@@ -219,6 +243,9 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
     @Override
     public Dimension getPreferredSize() {
+      if (!isVisible())
+        return new Dimension(0, 0);
+
       int w = (getParent() != null) ? getParent().getWidth() : 130;
       if (w <= 0)
         w = 130;
@@ -231,6 +258,8 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
     @Override
     public Dimension getMaximumSize() {
+      if (!isVisible())
+        return new Dimension(Integer.MAX_VALUE, 0);
       return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
     }
   }

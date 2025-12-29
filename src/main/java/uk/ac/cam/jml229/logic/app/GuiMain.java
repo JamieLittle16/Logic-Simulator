@@ -12,7 +12,7 @@ import java.util.List;
 
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.components.CustomComponent;
-import uk.ac.cam.jml229.logic.io.SettingsManager; // Import the new manager
+import uk.ac.cam.jml229.logic.io.SettingsManager;
 import uk.ac.cam.jml229.logic.io.StorageManager;
 import uk.ac.cam.jml229.logic.ui.panels.*;
 import uk.ac.cam.jml229.logic.ui.interaction.*;
@@ -43,10 +43,8 @@ public class GuiMain {
 
     SwingUtilities.invokeLater(() -> {
       frame = new JFrame("Logic Simulator");
-      // Use DO_NOTHING so we can intercept the close event to save settings
       frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
-      // --- Save Settings on Close ---
       frame.addWindowListener(new WindowAdapter() {
         @Override
         public void windowClosing(WindowEvent e) {
@@ -68,7 +66,6 @@ public class GuiMain {
       // --- Build Menu Bar ---
       menuBar = new JMenuBar();
 
-      // File Menu
       JMenu fileMenu = new JMenu("File");
       JMenuItem saveItem = new JMenuItem("Save...");
       saveItem.setAccelerator(
@@ -81,7 +78,6 @@ public class GuiMain {
       fileMenu.add(saveItem);
       fileMenu.add(loadItem);
 
-      // Edit Menu
       JMenu editMenu = new JMenu("Edit");
       JMenuItem undoItem = new JMenuItem("Undo");
       undoItem.setAccelerator(
@@ -120,8 +116,38 @@ public class GuiMain {
       editMenu.add(rotateItem);
       editMenu.add(deleteItem);
 
-      // View Menu
       JMenu viewMenu = new JMenu("View");
+      JMenu themeMenu = new JMenu("Theme");
+      ButtonGroup themeGroup = new ButtonGroup();
+
+      String[] builtIns = {
+          "Default Light", "Default Dark",
+          "Dracula", "Solarized Light", "Monokai",
+          "GitHub Light", "Nord", "Blueprint", "Cyberpunk", "Gruvbox Dark"
+      };
+
+      List<String> allThemes = new ArrayList<>(List.of(builtIns));
+      File userThemeDir = new File(System.getProperty("user.home") + "/.logik/themes");
+      if (userThemeDir.exists() && userThemeDir.isDirectory()) {
+        for (File f : userThemeDir.listFiles()) {
+          if (f.getName().endsWith(".properties")) {
+            String name = f.getName().replace(".properties", "");
+            if (!allThemes.contains(name))
+              allThemes.add(name);
+          }
+        }
+      }
+
+      String currentTheme = SettingsManager.getThemeName();
+      for (String t : allThemes) {
+        JRadioButtonMenuItem item = new JRadioButtonMenuItem(t);
+        if (t.equals(currentTheme))
+          item.setSelected(true);
+        item.addActionListener(e -> loadAndApplyTheme(t));
+        themeGroup.add(item);
+        themeMenu.add(item);
+      }
+
       JMenuItem zoomInItem = new JMenuItem("Zoom In");
       zoomInItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
@@ -136,35 +162,22 @@ public class GuiMain {
       zoomResetItem.addActionListener(e -> circuitPanel.resetZoom());
 
       JCheckBoxMenuItem snapGridItem = new JCheckBoxMenuItem("Snap to Grid");
-      // LOAD SETTING
       snapGridItem.setSelected(SettingsManager.isSnapToGrid());
       circuitPanel.getInteraction().setSnapToGrid(snapGridItem.isSelected());
-
       snapGridItem.addActionListener(e -> {
         boolean val = snapGridItem.isSelected();
         circuitPanel.getInteraction().setSnapToGrid(val);
-        SettingsManager.setSnapToGrid(val); // Save on change
+        SettingsManager.setSnapToGrid(val);
       });
 
-      JCheckBoxMenuItem darkModeItem = new JCheckBoxMenuItem("Dark Mode");
-      // LOAD SETTING
-      darkModeItem.setSelected(SettingsManager.isDarkMode());
-
-      darkModeItem.addActionListener(e -> {
-        boolean dark = darkModeItem.isSelected();
-        SettingsManager.setDarkMode(dark); // Save on change
-        applyTheme(dark);
-      });
-
+      viewMenu.add(themeMenu);
       viewMenu.add(zoomInItem);
       viewMenu.add(zoomOutItem);
       viewMenu.addSeparator();
       viewMenu.add(zoomResetItem);
       viewMenu.addSeparator();
       viewMenu.add(snapGridItem);
-      viewMenu.add(darkModeItem);
 
-      // Simulation Menu
       JMenu simMenu = new JMenu("Simulation");
       JMenuItem startItem = new JMenuItem("Start");
       startItem.addActionListener(e -> simController.start());
@@ -232,48 +245,77 @@ public class GuiMain {
         }
       });
 
-      // --- Apply Loaded Settings ---
-      applyTheme(SettingsManager.isDarkMode());
+      // --- Theme ---
+      loadAndApplyTheme(SettingsManager.getThemeName());
 
-      // Window Size & Position
-      int w = SettingsManager.getWindowWidth();
-      int h = SettingsManager.getWindowHeight();
-      frame.setSize(w, h);
+      boolean isMax = SettingsManager.isMaximized();
 
-      int x = SettingsManager.getWindowX();
-      int y = SettingsManager.getWindowY();
-      if (x != -1 && y != -1) {
-        frame.setLocation(x, y);
-      } else {
+      if (isMax) {
+        frame.setSize(1280, 800);
         frame.setLocationRelativeTo(null);
+      } else {
+        // Restore values
+        int w = SettingsManager.getWindowWidth();
+        int h = SettingsManager.getWindowHeight();
+        int x = SettingsManager.getWindowX();
+        int y = SettingsManager.getWindowY();
+
+        // SANITY CHECK 1: Detect "Glitch" Fullscreen
+        // If the saved size matches the screen size, but we are NOT maximised
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        if (w >= screenSize.width && h >= screenSize.height) {
+          w = 1280;
+          h = 800;
+          x = -1; // Force re-center
+        }
+
+        // SANITY CHECK 2: Minimum viable size
+        if (w < 400)
+          w = 1280;
+        if (h < 300)
+          h = 800;
+
+        frame.setSize(w, h);
+
+        // SANITY CHECK 3: Positioning
+        // If x/y are missing (-1) OR exactly (0,0) (which is suspicious on Linux),
+        // center it.
+        if (x == -1 || y == -1 || (x == 0 && y == 0)) {
+          frame.setLocationRelativeTo(null);
+        } else {
+          frame.setLocation(x, y);
+        }
       }
 
-      if (SettingsManager.isMaximized()) {
+      // Show frame BEFORE maximizing to ensure decorations load
+      frame.setVisible(true);
+
+      if (isMax) {
         frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
       }
 
-      frame.setVisible(true);
       circuitPanel.requestFocusInWindow();
     });
   }
 
-  // --- Save Settings on Exit ---
-  private static void saveSettingsAndExit() {
-    if (frame.getExtendedState() != JFrame.MAXIMIZED_BOTH) {
-      SettingsManager.setWindowBounds(
-          frame.getX(), frame.getY(),
-          frame.getWidth(), frame.getHeight(),
-          false);
+  private static void loadAndApplyTheme(String t) {
+    String loadName = t.toLowerCase().replace(" ", "_");
+    if (t.equals("Default Light"))
+      loadName = "light";
+    if (t.equals("Default Dark"))
+      loadName = "dark";
+    SettingsManager.setThemeName(t);
+    if (loadName.equals("light") || loadName.equals("dark")) {
+      Theme.setDarkMode(loadName.equals("dark"));
     } else {
-      // If maximised, we just remember the fact, not the X/Y
-      SettingsManager.setWindowBounds(0, 0, 0, 0, true);
+      Theme.loadTheme(loadName);
     }
-    System.exit(0);
+    SettingsManager.setDarkMode(Theme.isDarkMode);
+    updateUIColors();
+    circuitPanel.repaint();
   }
 
-  // --- Theme Applicator ---
-  private static void applyTheme(boolean dark) {
-    Theme.setDarkMode(dark);
+  private static void updateUIColors() {
     circuitPanel.updateTheme();
     palette.updateTheme();
     if (scrollPalette != null) {
@@ -296,7 +338,25 @@ public class GuiMain {
     }
   }
 
-  // --- Helper Helpers ---
+  private static void saveSettingsAndExit() {
+    int state = frame.getExtendedState();
+    boolean isMaximized = (state & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH;
+
+    if (!isMaximized) {
+      // Save actual position only if not maximized
+      SettingsManager.setWindowBounds(
+          frame.getX(), frame.getY(),
+          frame.getWidth(), frame.getHeight(),
+          false);
+    } else {
+      // If maximised, save the flag, but reset w/h to safe defaults
+      // This prevents the "huge window" bug next time un-maximized
+      SettingsManager.setWindowBounds(-1, -1, 1280, 800, true);
+    }
+    System.exit(0);
+  }
+
+  // --- Helpers (unchanged) ---
   private static void addSpeedItem(JMenu menu, ButtonGroup group, String label, int delayMs, boolean selected) {
     JRadioButtonMenuItem item = new JRadioButtonMenuItem(label);
     item.setSelected(selected);

@@ -304,7 +304,7 @@ public class ComponentPainter {
       g2.setStroke(new BasicStroke(5));
       g2.drawRoundRect(x, y + 5, 40, 30, 5, 5);
     }
-    g2.setColor(Theme.SWITCH_FILL);
+    g2.setColor(Theme.CLOCK_BACKGROUND);
     g2.fillRoundRect(x, y + 5, 40, 30, 5, 5);
     g2.setColor(Theme.COMP_BORDER);
     g2.setStroke(new BasicStroke(2));

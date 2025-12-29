@@ -1,42 +1,29 @@
 plugins {
     id 'java'
     id 'application'
+    // This plugin creates the "Fat JAR" with all dependencies
+    id 'com.github.johnrengelman.shadow' version '8.1.1' 
 }
 
-version = '1.1.0'
+group = 'uk.ac.cam.jml229.logic'
+version = '1.2.0'
 
 repositories {
     mavenCentral()
 }
 
-dependencies {
-    // Standard logging facade (highly recommended for production over System.out)
-    implementation 'org.slf4j:slf4j-api:2.0.9'
-    implementation 'org.slf4j:slf4j-simple:2.0.9' 
-
-    // Testing framework
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+application {
+    // The class containing your public static void main(String[] args)
+    mainClass = 'uk.ac.cam.jml229.logic.app.GuiMain'
 }
 
 java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(25) 
-    }
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 jar {
     manifest {
-        attributes(
-            'Main-Class': 'uk.ac.cam.jml229.logic.app.GuiMain' 
-        )
+        attributes 'Main-Class': 'uk.ac.cam.jml229.logic.app.GuiMain'
     }
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    
-    from {
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-    }
-}
-
-application {
-    mainClass = 'uk.ac.cam.jml229.logic.app.GuiMain'
 }

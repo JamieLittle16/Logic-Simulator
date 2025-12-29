@@ -9,6 +9,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.imageio.ImageIO;
+import java.net.URL;
+import java.awt.Taskbar;
 
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.components.CustomComponent;
@@ -41,8 +44,29 @@ public class GuiMain {
     System.setProperty("awt.useSystemAAFontSettings", "on");
     System.setProperty("swing.aatext", "true");
 
+    try {
+      // Load the image from the JAR resources
+      URL iconUrl = GuiMain.class.getResource("/images/icon.png");
+      if (iconUrl != null) {
+        Image icon = ImageIO.read(iconUrl);
+
+        // Set it as the Window icon (Windows/Linux title bar & taskbar)
+        frame.setIconImage(icon);
+
+        // Set it as the Dock icon (macOS requirement)
+        // Note: This requires running on Java 9 or later.
+        if (Taskbar.isTaskbarSupported() && Taskbar.getTaskbar().isSupported(Taskbar.Feature.ICON_IMAGE)) {
+          Taskbar.getTaskbar().setIconImage(icon);
+        }
+      } else {
+        System.err.println("Warning: Could not find icon.png in resources.");
+      }
+    } catch (Exception ex) {
+      System.err.println("Warning: Failed to set app icon: " + ex.getMessage());
+    }
+
     SwingUtilities.invokeLater(() -> {
-      frame = new JFrame("Logic Simulator");
+      frame = new JFrame("LogiK");
       frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
       frame.addWindowListener(new WindowAdapter() {

@@ -4,8 +4,11 @@ import java.awt.Point;
 import java.awt.event.MouseEvent;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.IdentityHashMap;
 
 import uk.ac.cam.jml229.logic.components.Component;
+import uk.ac.cam.jml229.logic.core.Wire;
 import uk.ac.cam.jml229.logic.ui.interaction.CircuitInteraction;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.WaypointRef;
 
@@ -14,9 +17,9 @@ public class DraggingState implements InteractionState {
   private final CircuitInteraction ctx;
   private final Point startPt;
 
-  // Store initial positions for relative movement
   private final Map<Component, Point> initialCompPositions = new HashMap<>();
-  private final Map<Point, Point> initialWaypointPositions = new HashMap<>();
+
+  private final Map<Point, Point> initialWaypointPositions = new IdentityHashMap<>();
 
   private boolean hasDragged = false;
 
@@ -24,15 +27,11 @@ public class DraggingState implements InteractionState {
     this.ctx = ctx;
     this.startPt = startPt;
 
-    // Snapshot Component positions
     for (Component c : ctx.getSelectedComponents()) {
       initialCompPositions.put(c, new Point(c.getX(), c.getY()));
     }
 
-    // Snapshot Waypoint positions
     for (WaypointRef wp : ctx.getSelectedWaypoints()) {
-      // Key is the actual point object in the model, Value is a copy of its
-      // coordinates
       initialWaypointPositions.put(wp.point(), new Point(wp.point().x, wp.point().y));
     }
   }
@@ -48,26 +47,86 @@ public class DraggingState implements InteractionState {
     int dx = current.x - startPt.x;
     int dy = current.y - startPt.y;
 
+    // Move Components
+    int gridDx = dx;
+    int gridDy = dy;
     if (ctx.isSnapToGrid()) {
-      dx = Math.round(dx / 20.0f) * 20;
-      dy = Math.round(dy / 20.0f) * 20;
+      gridDx = Math.round(dx / 20.0f) * 20;
+      gridDy = Math.round(dy / 20.0f) * 20;
     }
-
-    // Move Components relative to start
     for (Map.Entry<Component, Point> entry : initialCompPositions.entrySet()) {
       Point initial = entry.getValue();
-      entry.getKey().setPosition(initial.x + dx, initial.y + dy);
+      entry.getKey().setPosition(initial.x + gridDx, initial.y + gridDy);
     }
 
-    // Move Waypoints relative to start
-    for (Map.Entry<Point, Point> entry : initialWaypointPositions.entrySet()) {
-      Point initial = entry.getValue();
-      Point target = entry.getKey(); // The actual Point object in the circuit
+    // Move Waypoints
+    for (WaypointRef wp : ctx.getSelectedWaypoints()) {
+      Point initial = initialWaypointPositions.get(wp.point());
+      if (initial == null)
+        continue;
 
-      target.setLocation(initial.x + dx, initial.y + dy);
+      Point pt = wp.point();
+      int targetX = initial.x + dx;
+      int targetY = initial.y + dy;
+
+      if (ctx.isSnapToGrid()) {
+        pt.x = Math.round(targetX / 20.0f) * 20;
+        pt.y = Math.round(targetY / 20.0f) * 20;
+      } else {
+        // Set target first
+        pt.setLocation(targetX, targetY);
+
+        // --- Magnetic Snap Logic ---
+        List<Point> points = wp.connection().waypoints;
+        int index = points.indexOf(pt);
+        Point prev = null;
+        Point next = null;
+        Wire w = getWireForConnection(wp.connection());
+
+        if (index > 0) {
+          prev = points.get(index - 1);
+        } else if (w != null) {
+          Component src = w.getSource();
+          if (src != null) {
+            int srcIdx = 0;
+            for (int i = 0; i < src.getOutputCount(); i++)
+              if (src.getOutputWire(i) == w)
+                srcIdx = i;
+            prev = ctx.getRenderer().getPinLocation(src, false, srcIdx);
+          }
+        }
+
+        if (index < points.size() - 1) {
+          next = points.get(index + 1);
+        } else {
+          next = ctx.getRenderer().getPinLocation(wp.connection().component, true,
+              wp.connection().inputIndex);
+        }
+
+        int snapDist = 15;
+        if (prev != null) {
+          if (Math.abs(pt.x - prev.x) < snapDist)
+            pt.x = prev.x;
+          if (Math.abs(pt.y - prev.y) < snapDist)
+            pt.y = prev.y;
+        }
+        if (next != null) {
+          if (Math.abs(pt.x - next.x) < snapDist)
+            pt.x = next.x;
+          if (Math.abs(pt.y - next.y) < snapDist)
+            pt.y = next.y;
+        }
+      }
     }
 
     ctx.getPanel().repaint();
+  }
+
+  private Wire getWireForConnection(Wire.PortConnection pc) {
+    for (Wire w : ctx.getCircuit().getWires())
+      if (w.getDestinations().contains(pc))
+        return w;
+    return null;
   }
 
   @Override

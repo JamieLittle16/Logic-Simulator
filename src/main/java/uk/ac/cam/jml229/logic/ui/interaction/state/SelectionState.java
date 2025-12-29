@@ -4,7 +4,9 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
 import uk.ac.cam.jml229.logic.components.Component;
+import uk.ac.cam.jml229.logic.core.Wire;
 import uk.ac.cam.jml229.logic.ui.interaction.CircuitInteraction;
+import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.WaypointRef;
 
 public class SelectionState implements InteractionState {
 
@@ -31,11 +33,22 @@ public class SelectionState implements InteractionState {
 
   @Override
   public void mouseReleased(MouseEvent e) {
-    // Select everything in the box
+    // Select Components in box
     for (Component c : ctx.getCircuit().getComponents()) {
-      // Simple center-point check + bias
+      // Simple center-point check
       if (ctx.selectionRect.contains(c.getX() + 20, c.getY() + 20)) {
         ctx.addToSelection(c);
+      }
+    }
+
+    // Select Waypoints in box
+    for (Wire w : ctx.getCircuit().getWires()) {
+      for (Wire.PortConnection pc : w.getDestinations()) {
+        for (Point wp : pc.waypoints) {
+          if (ctx.selectionRect.contains(wp)) {
+            ctx.getSelectedWaypoints().add(new WaypointRef(pc, wp));
+          }
+        }
       }
     }
 

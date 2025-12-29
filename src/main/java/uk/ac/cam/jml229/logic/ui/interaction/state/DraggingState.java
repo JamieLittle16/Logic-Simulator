@@ -4,10 +4,8 @@ import java.awt.Point;
 import java.awt.event.MouseEvent;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.List;
 
 import uk.ac.cam.jml229.logic.components.Component;
-import uk.ac.cam.jml229.logic.core.Wire;
 import uk.ac.cam.jml229.logic.ui.interaction.CircuitInteraction;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.WaypointRef;
 
@@ -15,15 +13,27 @@ public class DraggingState implements InteractionState {
 
   private final CircuitInteraction ctx;
   private final Point startPt;
-  private final Map<Component, Point> initialPositions = new HashMap<>();
+
+  // Store initial positions for relative movement
+  private final Map<Component, Point> initialCompPositions = new HashMap<>();
+  private final Map<Point, Point> initialWaypointPositions = new HashMap<>();
+
   private boolean hasDragged = false;
 
   public DraggingState(CircuitInteraction ctx, Point startPt) {
     this.ctx = ctx;
     this.startPt = startPt;
 
+    // Snapshot Component positions
     for (Component c : ctx.getSelectedComponents()) {
-      initialPositions.put(c, new Point(c.getX(), c.getY()));
+      initialCompPositions.put(c, new Point(c.getX(), c.getY()));
+    }
+
+    // Snapshot Waypoint positions
+    for (WaypointRef wp : ctx.getSelectedWaypoints()) {
+      // Key is the actual point object in the model, Value is a copy of its
+      // coordinates
+      initialWaypointPositions.put(wp.point(), new Point(wp.point().x, wp.point().y));
     }
   }
 
@@ -43,16 +53,18 @@ public class DraggingState implements InteractionState {
       dy = Math.round(dy / 20.0f) * 20;
     }
 
-    // Move Components
-    for (Map.Entry<Component, Point> entry : initialPositions.entrySet()) {
+    // Move Components relative to start
+    for (Map.Entry<Component, Point> entry : initialCompPositions.entrySet()) {
       Point initial = entry.getValue();
       entry.getKey().setPosition(initial.x + dx, initial.y + dy);
     }
 
-    // Move Waypoints
-    for (WaypointRef wp : ctx.getSelectedWaypoints()) {
-      wp.point().setLocation(current); // Absolute move for single waypoint
-      // Note: Snap logic for waypoints handles itself usually, simplified here
+    // Move Waypoints relative to start
+    for (Map.Entry<Point, Point> entry : initialWaypointPositions.entrySet()) {
+      Point initial = entry.getValue();
+      Point target = entry.getKey(); // The actual Point object in the circuit
+
+      target.setLocation(initial.x + dx, initial.y + dy);
     }
 
     ctx.getPanel().repaint();

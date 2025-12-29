@@ -57,13 +57,12 @@ The easiest way to get started on Windows.
 Install via terminal with a single command. This handles downloading, extracting, and creating desktop shortcuts automatically.
 
 ```bash
-curl -sL https://raw.githubusercontent.com/JamieLittle16/LogiK/main/install.sh | bash
-
+curl -sL https://raw.githubusercontent.com/JamieLittle16/LogiK/main/src/main/install.sh | bash
 ```
 
 To uninstall, simply run: 
 ```bash
-~/.local/share/logik/uninstall.sh
+curl -sL https://raw.githubusercontent.com/JamieLittle16/LogiK/main/src/main/uninstall.sh | bash
 ```
 
 Once installed, run `logik` from your terminal or launch it from your Applications menu.

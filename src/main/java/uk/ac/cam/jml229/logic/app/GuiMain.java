@@ -4,8 +4,7 @@ import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.plaf.basic.BasicSplitPaneUI;
 import java.awt.*;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
+import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -13,6 +12,7 @@ import java.util.List;
 
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.components.CustomComponent;
+import uk.ac.cam.jml229.logic.io.SettingsManager; // Import the new manager
 import uk.ac.cam.jml229.logic.io.StorageManager;
 import uk.ac.cam.jml229.logic.ui.panels.*;
 import uk.ac.cam.jml229.logic.ui.interaction.*;
@@ -34,7 +34,6 @@ public class GuiMain {
   private static JMenuBar menuBar;
   private static JSplitPane splitPane;
 
-  // --- NEW: Simulation Controller ---
   private static SimulationController simController;
 
   public static void main(String[] args) {
@@ -44,7 +43,16 @@ public class GuiMain {
 
     SwingUtilities.invokeLater(() -> {
       frame = new JFrame("Logic Simulator");
-      frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+      // Use DO_NOTHING so we can intercept the close event to save settings
+      frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+
+      // --- Save Settings on Close ---
+      frame.addWindowListener(new WindowAdapter() {
+        @Override
+        public void windowClosing(WindowEvent e) {
+          saveSettingsAndExit();
+        }
+      });
 
       // --- Init Core Components ---
       circuitPanel = new CircuitPanel();
@@ -54,8 +62,6 @@ public class GuiMain {
       palette = new ComponentPalette(interaction, renderer);
       interaction.setPalette(palette);
 
-      // --- Init Simulation Controller ---
-      // Pass the circuit and the repaint method
       simController = new SimulationController(circuitPanel.getCircuit(), circuitPanel::repaint);
       simController.start();
 
@@ -68,12 +74,10 @@ public class GuiMain {
       saveItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_S, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       saveItem.addActionListener(e -> performSave());
-
       JMenuItem loadItem = new JMenuItem("Load...");
       loadItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_O, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       loadItem.addActionListener(e -> performLoad());
-
       fileMenu.add(saveItem);
       fileMenu.add(loadItem);
 
@@ -83,45 +87,36 @@ public class GuiMain {
       undoItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_Z, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       undoItem.addActionListener(e -> circuitPanel.undo());
-
       JMenuItem redoItem = new JMenuItem("Redo");
       redoItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_Y, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       redoItem.addActionListener(e -> circuitPanel.redo());
-
       editMenu.add(undoItem);
       editMenu.add(redoItem);
       editMenu.addSeparator();
-
       JMenuItem cutItem = new JMenuItem("Cut");
       cutItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_X, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       cutItem.addActionListener(e -> circuitPanel.cut());
-
       JMenuItem copyItem = new JMenuItem("Copy");
       copyItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_C, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       copyItem.addActionListener(e -> circuitPanel.copy());
-
       JMenuItem pasteItem = new JMenuItem("Paste");
       pasteItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_V, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       pasteItem.addActionListener(e -> circuitPanel.paste());
-
       editMenu.add(cutItem);
       editMenu.add(copyItem);
       editMenu.add(pasteItem);
       editMenu.addSeparator();
-
       JMenuItem rotateItem = new JMenuItem("Rotate");
       rotateItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_R, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       rotateItem.addActionListener(e -> circuitPanel.rotateSelection());
-
       JMenuItem deleteItem = new JMenuItem("Delete");
       deleteItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0));
       deleteItem.addActionListener(e -> circuitPanel.deleteSelection());
-
       editMenu.add(rotateItem);
       editMenu.add(deleteItem);
 
@@ -131,44 +126,34 @@ public class GuiMain {
       zoomInItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       zoomInItem.addActionListener(e -> circuitPanel.zoomIn());
-
       JMenuItem zoomOutItem = new JMenuItem("Zoom Out");
       zoomOutItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       zoomOutItem.addActionListener(e -> circuitPanel.zoomOut());
-
       JMenuItem zoomResetItem = new JMenuItem("Reset Zoom");
       zoomResetItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_0, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
       zoomResetItem.addActionListener(e -> circuitPanel.resetZoom());
 
       JCheckBoxMenuItem snapGridItem = new JCheckBoxMenuItem("Snap to Grid");
-      snapGridItem.setSelected(false);
-      snapGridItem.addActionListener(e -> circuitPanel.getInteraction().setSnapToGrid(snapGridItem.isSelected()));
+      // LOAD SETTING
+      snapGridItem.setSelected(SettingsManager.isSnapToGrid());
+      circuitPanel.getInteraction().setSnapToGrid(snapGridItem.isSelected());
+
+      snapGridItem.addActionListener(e -> {
+        boolean val = snapGridItem.isSelected();
+        circuitPanel.getInteraction().setSnapToGrid(val);
+        SettingsManager.setSnapToGrid(val); // Save on change
+      });
 
       JCheckBoxMenuItem darkModeItem = new JCheckBoxMenuItem("Dark Mode");
+      // LOAD SETTING
+      darkModeItem.setSelected(SettingsManager.isDarkMode());
+
       darkModeItem.addActionListener(e -> {
-        Theme.setDarkMode(darkModeItem.isSelected());
-        circuitPanel.updateTheme();
-        palette.updateTheme();
-        if (scrollPalette != null) {
-          scrollPalette.setBackground(Theme.PALETTE_BACKGROUND);
-          scrollPalette.getViewport().setBackground(Theme.PALETTE_BACKGROUND);
-        }
-        if (splitPane != null) {
-          splitPane.setBackground(Theme.PALETTE_BACKGROUND);
-          splitPane.repaint();
-        }
-        if (menuBar != null) {
-          menuBar.setBackground(Theme.isDarkMode ? Theme.PALETTE_BACKGROUND : null);
-          for (int i = 0; i < menuBar.getMenuCount(); i++) {
-            JMenu m = menuBar.getMenu(i);
-            if (m != null)
-              m.setForeground(Theme.TEXT_COLOR);
-          }
-          if (zoomStatusLabel != null)
-            zoomStatusLabel.setForeground(Theme.PALETTE_HEADINGS);
-        }
+        boolean dark = darkModeItem.isSelected();
+        SettingsManager.setDarkMode(dark); // Save on change
+        applyTheme(dark);
       });
 
       viewMenu.add(zoomInItem);
@@ -183,15 +168,11 @@ public class GuiMain {
       JMenu simMenu = new JMenu("Simulation");
       JMenuItem startItem = new JMenuItem("Start");
       startItem.addActionListener(e -> simController.start());
-
       JMenuItem stopItem = new JMenuItem("Stop");
       stopItem.addActionListener(e -> simController.stop());
-
       JMenuItem stepItem = new JMenuItem("Step (Manual Tick)");
       stepItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_T, 0));
       stepItem.addActionListener(e -> simController.step());
-
-      // Clock Speed Submenu
       JMenu clockSpeedMenu = new JMenu("Clock Speed");
       ButtonGroup clockGroup = new ButtonGroup();
       addSpeedItem(clockSpeedMenu, clockGroup, "0.5 Hz (Slow)", 2000, false);
@@ -200,47 +181,12 @@ public class GuiMain {
       addSpeedItem(clockSpeedMenu, clockGroup, "5 Hz", 200, false);
       addSpeedItem(clockSpeedMenu, clockGroup, "10 Hz", 100, false);
       addSpeedItem(clockSpeedMenu, clockGroup, "50 Hz", 20, false);
-
-      JRadioButtonMenuItem customClockItem = new JRadioButtonMenuItem("Custom...");
-      customClockItem.addActionListener(e -> {
-        String input = JOptionPane.showInputDialog(frame, "Enter Clock Frequency (Hz):", "Custom Clock Speed",
-            JOptionPane.QUESTION_MESSAGE);
-        if (input != null) {
-          try {
-            double hz = Double.parseDouble(input);
-            if (hz > 0)
-              simController.setClockDelayMs((int) (1000.0 / hz));
-          } catch (NumberFormatException ex) {
-            /* ignore */ }
-        }
-      });
-      clockGroup.add(customClockItem);
-      clockSpeedMenu.add(customClockItem);
-
-      // Logic Speed Submenu
       JMenu logicSpeedMenu = new JMenu("Logic Speed (Propagation)");
       ButtonGroup logicGroup = new ButtonGroup();
       addLogicSpeedItem(logicSpeedMenu, logicGroup, "Instant (1000 updates/frame)", 1000, true);
       addLogicSpeedItem(logicSpeedMenu, logicGroup, "Fast (50 updates/frame)", 50, false);
       addLogicSpeedItem(logicSpeedMenu, logicGroup, "Visible (5 updates/frame)", 5, false);
       addLogicSpeedItem(logicSpeedMenu, logicGroup, "Slow Motion (1 update/frame)", 1, false);
-
-      JRadioButtonMenuItem customLogicItem = new JRadioButtonMenuItem("Custom...");
-      customLogicItem.addActionListener(e -> {
-        String input = JOptionPane.showInputDialog(frame, "Enter Logic Updates per Frame:", "Custom Logic Speed",
-            JOptionPane.QUESTION_MESSAGE);
-        if (input != null) {
-          try {
-            int steps = Integer.parseInt(input);
-            if (steps > 0)
-              simController.setLogicStepsPerFrame(steps);
-          } catch (NumberFormatException ex) {
-            /* ignore */ }
-        }
-      });
-      logicGroup.add(customLogicItem);
-      logicSpeedMenu.add(customLogicItem);
-
       simMenu.add(startItem);
       simMenu.add(stopItem);
       simMenu.add(stepItem);
@@ -252,12 +198,10 @@ public class GuiMain {
       menuBar.add(editMenu);
       menuBar.add(viewMenu);
       menuBar.add(simMenu);
-
       menuBar.add(Box.createHorizontalGlue());
       zoomStatusLabel = new JLabel("Zoom: 100%  ");
       zoomStatusLabel.setForeground(Color.GRAY);
       menuBar.add(zoomStatusLabel);
-
       frame.setJMenuBar(menuBar);
 
       circuitPanel.setOnZoomChanged(scale -> {
@@ -265,7 +209,6 @@ public class GuiMain {
         zoomStatusLabel.setText("Zoom: " + pct + "%  ");
       });
 
-      // Layout
       scrollPalette = new JScrollPane(palette);
       scrollPalette.setBorder(null);
       scrollPalette.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
@@ -289,11 +232,68 @@ public class GuiMain {
         }
       });
 
-      frame.setSize(1280, 800);
-      frame.setLocationRelativeTo(null);
-      toggleFullScreen(frame);
+      // --- Apply Loaded Settings ---
+      applyTheme(SettingsManager.isDarkMode());
+
+      // Window Size & Position
+      int w = SettingsManager.getWindowWidth();
+      int h = SettingsManager.getWindowHeight();
+      frame.setSize(w, h);
+
+      int x = SettingsManager.getWindowX();
+      int y = SettingsManager.getWindowY();
+      if (x != -1 && y != -1) {
+        frame.setLocation(x, y);
+      } else {
+        frame.setLocationRelativeTo(null);
+      }
+
+      if (SettingsManager.isMaximized()) {
+        frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+      }
+
+      frame.setVisible(true);
       circuitPanel.requestFocusInWindow();
     });
+  }
+
+  // --- Save Settings on Exit ---
+  private static void saveSettingsAndExit() {
+    if (frame.getExtendedState() != JFrame.MAXIMIZED_BOTH) {
+      SettingsManager.setWindowBounds(
+          frame.getX(), frame.getY(),
+          frame.getWidth(), frame.getHeight(),
+          false);
+    } else {
+      // If maximised, we just remember the fact, not the X/Y
+      SettingsManager.setWindowBounds(0, 0, 0, 0, true);
+    }
+    System.exit(0);
+  }
+
+  // --- Theme Applicator ---
+  private static void applyTheme(boolean dark) {
+    Theme.setDarkMode(dark);
+    circuitPanel.updateTheme();
+    palette.updateTheme();
+    if (scrollPalette != null) {
+      scrollPalette.setBackground(Theme.PALETTE_BACKGROUND);
+      scrollPalette.getViewport().setBackground(Theme.PALETTE_BACKGROUND);
+    }
+    if (splitPane != null) {
+      splitPane.setBackground(Theme.PALETTE_BACKGROUND);
+      splitPane.repaint();
+    }
+    if (menuBar != null) {
+      menuBar.setBackground(Theme.isDarkMode ? Theme.PALETTE_BACKGROUND : null);
+      for (int i = 0; i < menuBar.getMenuCount(); i++) {
+        JMenu m = menuBar.getMenu(i);
+        if (m != null)
+          m.setForeground(Theme.TEXT_COLOR);
+      }
+      if (zoomStatusLabel != null)
+        zoomStatusLabel.setForeground(Theme.PALETTE_HEADINGS);
+    }
   }
 
   // --- Helper Helpers ---
@@ -340,10 +340,7 @@ public class GuiMain {
         circuitPanel.getInteraction().resetHistory();
         for (CustomComponent cc : result.customTools())
           palette.addCustomTool(cc);
-
-        // --- NEW: Update Simulation Controller ---
         simController.setCircuit(result.circuit());
-
         circuitPanel.repaint();
         JOptionPane.showMessageDialog(frame, "Loaded successfully!");
       } catch (Exception ex) {

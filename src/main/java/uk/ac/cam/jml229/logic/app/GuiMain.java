@@ -318,26 +318,66 @@ public class GuiMain {
   private static void updateUIColors() {
     circuitPanel.updateTheme();
     palette.updateTheme();
+
     if (scrollPalette != null) {
       scrollPalette.setBackground(Theme.PALETTE_BACKGROUND);
       scrollPalette.getViewport().setBackground(Theme.PALETTE_BACKGROUND);
-
       scrollPalette.getVerticalScrollBar().setUI(new ThemedScrollBarUI());
       scrollPalette.getHorizontalScrollBar().setUI(new ThemedScrollBarUI());
     }
+
     if (splitPane != null) {
       splitPane.setBackground(Theme.PALETTE_BACKGROUND);
       splitPane.repaint();
     }
+
     if (menuBar != null) {
       menuBar.setBackground(Theme.isDarkMode ? Theme.PALETTE_BACKGROUND : null);
+      menuBar.setBorder(BorderFactory.createEmptyBorder(0, 0, 1, 0)); // Clean separator
+
       for (int i = 0; i < menuBar.getMenuCount(); i++) {
         JMenu m = menuBar.getMenu(i);
         if (m != null)
-          m.setForeground(Theme.TEXT_COLOR);
+          styleMenu(m);
       }
+
       if (zoomStatusLabel != null)
         zoomStatusLabel.setForeground(Theme.PALETTE_HEADINGS);
+    }
+  }
+
+  // --- Recursive Menu Styler ---
+  private static void styleMenu(JComponent item) {
+    if (Theme.isDarkMode) {
+      item.setBackground(Theme.PALETTE_BACKGROUND);
+      item.setForeground(Theme.TEXT_COLOR);
+      item.setOpaque(true);
+
+      // Fix the popup border/background
+      if (item instanceof JMenu) {
+        JPopupMenu popup = ((JMenu) item).getPopupMenu();
+        popup.setBackground(Theme.PALETTE_BACKGROUND);
+        popup.setBorder(BorderFactory.createLineBorder(Theme.BUTTON_BORDER));
+      }
+    } else {
+      // Restore default
+      item.setBackground(null);
+      item.setForeground(Color.BLACK);
+      item.setOpaque(false);
+
+      if (item instanceof JMenu) {
+        JPopupMenu popup = ((JMenu) item).getPopupMenu();
+        popup.setBackground(Color.WHITE);
+        popup.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+      }
+    }
+
+    // Recurse into sub-items
+    if (item instanceof JMenu) {
+      for (java.awt.Component c : ((JMenu) item).getMenuComponents()) {
+        if (c instanceof JComponent)
+          styleMenu((JComponent) c);
+      }
     }
   }
 

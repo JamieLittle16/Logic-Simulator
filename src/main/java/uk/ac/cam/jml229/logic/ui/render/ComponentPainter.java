@@ -9,6 +9,7 @@ import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.components.gates.*;
 import uk.ac.cam.jml229.logic.components.io.*;
 import uk.ac.cam.jml229.logic.components.seq.*;
+import uk.ac.cam.jml229.logic.components.misc.*;
 
 public class ComponentPainter {
 
@@ -71,13 +72,16 @@ public class ComponentPainter {
       case "XOR" -> drawXorGate(g2, c, x, y, sel);
       case "BUFFER" -> drawBufferGate(g2, c, x, y, sel);
 
+      // Misc
+      case "LABEL" -> drawTextLabel(g2, (TextLabel) c, x, y, sel);
+
       default -> drawGenericBox(g2, c, x, y, sel);
     }
   }
 
   private boolean shouldDrawLabel(String id) {
     return switch (id) {
-      case "CUSTOM", "D_FF", "JK_FF", "T_FF", "SEVEN_SEG", "HEX" -> false;
+      case "CUSTOM", "D_FF", "JK_FF", "T_FF", "SEVEN_SEG", "HEX", "LABEL" -> false;
       default -> true;
     };
   }
@@ -200,6 +204,10 @@ public class ComponentPainter {
     } else if (c instanceof HexDisplay) {
       w = 60;
       h = 80;
+    } else if (c instanceof TextLabel) {
+      String txt = c.getName();
+      w = Math.max(60, txt.length() * 12 + 20);
+      h = 30;
     } else {
       int inputCount = getInputCount(c);
       int outputCount = c.getOutputCount();
@@ -602,5 +610,32 @@ public class ComponentPainter {
     // Bubble
     int by = y + yOffset;
     drawBubble(g2, x + 45, by + 15, sel);
+  }
+
+  private void drawTextLabel(Graphics2D g2, TextLabel c, int x, int y, boolean sel) {
+    String text = c.getName();
+    g2.setFont(new Font("SansSerif", Font.BOLD, 14));
+    FontMetrics fm = g2.getFontMetrics();
+
+    Dimension dim = getComponentSize(c);
+    int w = dim.width;
+    int h = dim.height;
+
+    // Draw Selection Box
+    if (sel) {
+      g2.setColor(Theme.SELECTION_BORDER);
+      g2.setStroke(new BasicStroke(1));
+      g2.drawRect(x, y, w, h);
+    }
+
+    // Draw Text Centered in that box
+    int textW = fm.stringWidth(text);
+    // Center X
+    int textX = x + (w - textW) / 2;
+    // Center Y (Baseline offset)
+    int textY = y + ((h - fm.getHeight()) / 2) + fm.getAscent();
+
+    g2.setColor(Theme.TEXT_COLOR);
+    g2.drawString(text, textX, textY);
   }
 }

@@ -8,10 +8,12 @@ import javax.swing.*;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.components.io.Switch;
 import uk.ac.cam.jml229.logic.components.gates.LogicGate;
+import uk.ac.cam.jml229.logic.components.misc.TextLabel;
 import uk.ac.cam.jml229.logic.ui.interaction.*;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.Pin;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.WireSegment;
 import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.WaypointRef;
+import uk.ac.cam.jml229.logic.app.Theme;
 
 public class IdleState implements InteractionState {
 
@@ -172,8 +174,14 @@ public class IdleState implements InteractionState {
   private void renameComponent(Component c) {
     String newName = JOptionPane.showInputDialog(ctx.getPanel(), "Rename:", c.getName());
     if (newName != null && !newName.trim().isEmpty()) {
-      if (newName.length() > 8)
-        newName = newName.substring(0, 8);
+
+      // Allow Labels to have long text (30 chars), keep others short (8 chars)
+      int maxLen = (c instanceof TextLabel) ? 30 : 8;
+
+      if (newName.length() > maxLen) {
+        newName = newName.substring(0, maxLen);
+      }
+
       c.setName(newName);
       ctx.getPanel().repaint();
     }
@@ -181,6 +189,9 @@ public class IdleState implements InteractionState {
 
   private void showContextMenu(int x, int y) {
     JPopupMenu menu = new JPopupMenu();
+
+    menu.setBackground(Theme.isDarkMode ? Theme.PALETTE_BACKGROUND : Color.WHITE);
+    menu.setBorder(BorderFactory.createLineBorder(Theme.BUTTON_BORDER));
 
     // If exactly one component is selected and it is a LogicGate (AND, OR, etc.)
     if (ctx.getSelection().size() == 1 && ctx.getSelection().get(0) instanceof LogicGate) {
@@ -234,6 +245,13 @@ public class IdleState implements InteractionState {
     JMenuItem delete = new JMenuItem("Delete");
     delete.addActionListener(e -> ctx.deleteSelection());
     menu.add(delete);
+
+    for (java.awt.Component c : menu.getComponents()) {
+      if (c instanceof JMenuItem) {
+        c.setBackground(menu.getBackground());
+        c.setForeground(Theme.TEXT_COLOR);
+      }
+    }
 
     menu.show(ctx.getPanel(), x, y);
   }

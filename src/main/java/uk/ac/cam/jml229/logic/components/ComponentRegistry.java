@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import uk.ac.cam.jml229.logic.components.gates.*;
 import uk.ac.cam.jml229.logic.components.io.*;
 import uk.ac.cam.jml229.logic.components.seq.*;
+import uk.ac.cam.jml229.logic.components.misc.TextLabel; // Import the new component
 
 /**
  * Central "Source of Truth" for all standard component types.
@@ -35,7 +36,10 @@ public enum ComponentRegistry {
   CLOCK("CLOCK", "CLK", "Sequential", () -> new Clock("CLK")),
   D_FF("D_FF", "D-FF", "Sequential", () -> new DFlipFlop("D-FF")),
   JK_FF("JK_FF", "JK-FF", "Sequential", () -> new JKFlipFlop("JK-FF")),
-  T_FF("T_FF", "T-FF", "Sequential", () -> new TFlipFlop("T-FF"));
+  T_FF("T_FF", "T-FF", "Sequential", () -> new TFlipFlop("T-FF")),
+
+  // --- Misc ---
+  LABEL("LABEL", "Label", "Misc", () -> new TextLabel());
 
   private final String id;
   private final String displayName;
@@ -82,12 +86,13 @@ public enum ComponentRegistry {
 
   // --- Category Helper ---
   public static Map<String, List<ComponentRegistry>> getByCategory() {
-    // Returns a map ensuring order: IO -> Basic -> Advanced -> Sequential
+    // Returns a map ensuring order: IO -> Basic -> Advanced -> Sequential -> Misc
     Map<String, List<ComponentRegistry>> map = new LinkedHashMap<>();
     map.put("IO / Probes", new ArrayList<>());
     map.put("Basic Gates", new ArrayList<>());
     map.put("Advanced", new ArrayList<>());
     map.put("Sequential", new ArrayList<>());
+    map.put("Misc", new ArrayList<>());
 
     for (ComponentRegistry type : values()) {
       map.computeIfAbsent(type.category, k -> new ArrayList<>()).add(type);

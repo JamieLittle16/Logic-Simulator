@@ -429,48 +429,76 @@ public class GuiMain {
   }
 
   private static void showSettingsDialog() {
-    JDialog dialog = new JDialog(frame, "Simulation Settings", true);
+    // Use "Preferences" if Title doesn't fit
+    JDialog dialog = new JDialog(frame, "Preferences", true);
     dialog.setLayout(new BorderLayout());
-    dialog.setSize(300, 200);
+    // Increase width to prevent cutoff
+    dialog.setSize(400, 250);
     dialog.setLocationRelativeTo(frame);
 
     JPanel content = new JPanel();
     content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-    content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+    content.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
     content.setBackground(Theme.PALETTE_BACKGROUND);
 
+    // --- FIX: Add Internal Title ---
+    JLabel titleLabel = new JLabel("Simulation Settings");
+    titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+    titleLabel.setForeground(Theme.PALETTE_HEADINGS);
+    titleLabel.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+    content.add(titleLabel);
+    content.add(Box.createVerticalStrut(20));
+
+    // Custom Checkbox
     JCheckBox enableDelay = new JCheckBox("Enable Propagation Delay (Hazards)");
     enableDelay.setSelected(SettingsManager.isPropagationDelayEnabled());
     enableDelay.setOpaque(false);
     enableDelay.setForeground(Theme.TEXT_COLOR);
+    enableDelay.setFocusPainted(false);
+    enableDelay.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 
-    JPanel delayPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    if (Theme.isDarkMode) {
+      enableDelay.setIcon(new FlatCheckIcon());
+    }
+
+    content.add(enableDelay);
+    content.add(Box.createVerticalStrut(15));
+
+    // Spinner Panel
+    JPanel delayPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
     delayPanel.setOpaque(false);
+    delayPanel.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+
     JLabel delayLabel = new JLabel("Gate Delay (Ticks): ");
     delayLabel.setForeground(Theme.TEXT_COLOR);
+
     JSpinner delaySpinner = new JSpinner(new SpinnerNumberModel(SettingsManager.getGateDelay(), 1, 50, 1));
+
+    // --- FIX: Style the Spinner Buttons and Field ---
+    styleSpinner(delaySpinner);
+
     delayPanel.add(delayLabel);
+    delayPanel.add(Box.createHorizontalStrut(10));
     delayPanel.add(delaySpinner);
 
     delaySpinner.setEnabled(enableDelay.isSelected());
     enableDelay.addActionListener(e -> delaySpinner.setEnabled(enableDelay.isSelected()));
 
-    content.add(enableDelay);
-    content.add(Box.createVerticalStrut(10));
     content.add(delayPanel);
     content.add(Box.createVerticalGlue());
 
+    // Buttons
     JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
     buttons.setBackground(Theme.PALETTE_BACKGROUND);
 
-    JButton restoreBtn = new JButton("Restore Defaults");
+    JButton restoreBtn = createStyledButton("Restore Defaults");
     restoreBtn.addActionListener(e -> {
       enableDelay.setSelected(true);
       delaySpinner.setValue(1);
       delaySpinner.setEnabled(true);
     });
 
-    JButton okBtn = new JButton("OK");
+    JButton okBtn = createStyledButton("OK");
     okBtn.addActionListener(e -> {
       SettingsManager.setPropagationDelayEnabled(enableDelay.isSelected());
       SettingsManager.setGateDelay((Integer) delaySpinner.getValue());
@@ -483,6 +511,56 @@ public class GuiMain {
     dialog.add(content, BorderLayout.CENTER);
     dialog.add(buttons, BorderLayout.SOUTH);
     dialog.setVisible(true);
+  }
+
+  private static void styleSpinner(JSpinner spinner) {
+    if (Theme.isDarkMode) {
+      spinner.setBorder(BorderFactory.createLineBorder(Theme.BUTTON_BORDER));
+
+      JComponent editor = spinner.getEditor();
+      if (editor instanceof JSpinner.DefaultEditor) {
+        JTextField tf = ((JSpinner.DefaultEditor) editor).getTextField();
+        tf.setBackground(Theme.BUTTON_BACKGROUND);
+        tf.setForeground(Theme.TEXT_COLOR);
+        tf.setCaretColor(Theme.TEXT_COLOR);
+      }
+
+      // Hack to style the arrows: Iterate components
+      for (java.awt.Component c : spinner.getComponents()) {
+        if (c instanceof JButton) {
+          JButton btn = (JButton) c;
+          btn.setBackground(Theme.BUTTON_BACKGROUND);
+          btn.setBorder(BorderFactory.createLineBorder(Theme.BUTTON_BORDER));
+          // We can't easily replace the icon without deep look-and-feel changes,
+          // but removing the 3D border makes it look 90% better.
+        }
+      }
+    }
+  }
+
+  private static JButton createStyledButton(String text) {
+    JButton btn = new JButton(text);
+    btn.setFocusPainted(false);
+    if (Theme.isDarkMode) {
+      btn.setBackground(Theme.BUTTON_BACKGROUND);
+      btn.setForeground(Theme.TEXT_COLOR);
+      btn.setBorder(BorderFactory.createCompoundBorder(
+          BorderFactory.createLineBorder(Theme.BUTTON_BORDER),
+          BorderFactory.createEmptyBorder(5, 15, 5, 15)));
+      btn.setOpaque(true);
+      btn.setContentAreaFilled(true);
+
+      btn.addMouseListener(new MouseAdapter() {
+        public void mouseEntered(MouseEvent e) {
+          btn.setBackground(Theme.BUTTON_HOVER);
+        }
+
+        public void mouseExited(MouseEvent e) {
+          btn.setBackground(Theme.BUTTON_BACKGROUND);
+        }
+      });
+    }
+    return btn;
   }
 
   private static void addSelectionToTiming(List<Component> selection) {

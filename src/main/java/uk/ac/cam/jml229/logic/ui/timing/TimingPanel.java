@@ -29,7 +29,6 @@ public class TimingPanel extends JPanel implements Scrollable {
     return rowHeader;
   }
 
-  // --- FIX: Theming Method ---
   public void updateTheme() {
     setBackground(Theme.BACKGROUND);
     rowHeader.setBackground(Theme.PANEL_BACKGROUND);
@@ -75,6 +74,7 @@ public class TimingPanel extends JPanel implements Scrollable {
     }
 
     repaint();
+    rowHeader.repaint();
   }
 
   public void togglePause() {
@@ -139,11 +139,6 @@ public class TimingPanel extends JPanel implements Scrollable {
 
     Rectangle view = getVisibleRect();
 
-    // --- FIX IS HERE: Widen the loop range (-2 to +2) ---
-    // -2: Ensures we start drawing from well off-screen (Right) so the line enters
-    // smoothly.
-    // +2: Ensures we draw past the left edge, preventing the line from "breaking"
-    // before it leaves the screen.
     int minI = Math.max(0, (totalWidth - (view.x + view.width)) / timeStep - 2);
     int maxI = Math.min(bufferSize, (totalWidth - view.x) / timeStep + 2);
 

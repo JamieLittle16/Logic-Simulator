@@ -21,6 +21,7 @@ import uk.ac.cam.jml229.logic.ui.panels.*;
 import uk.ac.cam.jml229.logic.ui.interaction.*;
 import uk.ac.cam.jml229.logic.ui.render.*;
 import uk.ac.cam.jml229.logic.ui.SimulationController;
+import uk.ac.cam.jml229.logic.ui.AutoLayout;
 
 public class GuiMain {
 
@@ -215,6 +216,23 @@ public class GuiMain {
       viewMenu.addSeparator();
       viewMenu.add(snapGridItem);
 
+      JMenu toolsMenu = new JMenu("Tools");
+      JMenuItem autoLayoutItem = new JMenuItem("Auto-Organize Circuit");
+      autoLayoutItem.setAccelerator(
+          KeyStroke.getKeyStroke(KeyEvent.VK_L, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
+
+      autoLayoutItem.addActionListener(e -> {
+        // 1. Run the layout
+        AutoLayout.organize(circuitPanel.getCircuit());
+
+        // 2. Force a repaint to show changes
+        circuitPanel.repaint();
+
+        // 3. Save state to Undo history (Crucial!)
+        circuitPanel.getInteraction().saveHistory();
+      });
+
+      toolsMenu.add(autoLayoutItem);
       JMenu simMenu = new JMenu("Simulation");
       JMenuItem startItem = new JMenuItem("Start");
       startItem.addActionListener(e -> simController.start());
@@ -247,6 +265,7 @@ public class GuiMain {
       menuBar.add(fileMenu);
       menuBar.add(editMenu);
       menuBar.add(viewMenu);
+      menuBar.add(toolsMenu);
       menuBar.add(simMenu);
       menuBar.add(Box.createHorizontalGlue());
       zoomStatusLabel = new JLabel("Zoom: 100%  ");

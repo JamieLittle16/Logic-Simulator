@@ -7,7 +7,7 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.AffineTransform;
 import java.util.Map;
 import java.util.List;
-import java.util.ArrayList; // Added import
+import java.util.ArrayList;
 
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
@@ -211,7 +211,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
     button.setOpaque(false);
     button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-    button.addMouseListener(new MouseAdapter() {
+    MouseAdapter listener = new MouseAdapter() {
       @Override
       public void mousePressed(MouseEvent e) {
         // --- RIGHT CLICK DELETE LOGIC ---
@@ -269,6 +269,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
           return;
         }
 
+        // --- LEFT CLICK PLACING LOGIC ---
         Component newComp;
         if (prototype instanceof CustomComponent) {
           newComp = prototype.makeCopy();
@@ -277,8 +278,36 @@ public class ComponentPalette extends JPanel implements Scrollable {
           newComp = entry.map(ComponentRegistry::createInstance).orElse(null);
         }
 
-        if (newComp != null)
+        if (newComp != null) {
           interaction.startPlacing(newComp);
+          // Immediately update ghost position (for visual feedback)
+          forwardToInteraction(e);
+        }
+      }
+
+      @Override
+      public void mouseDragged(MouseEvent e) {
+        // While dragging from the sidebar, keep updating the ghost on the main panel
+        if (SwingUtilities.isLeftMouseButton(e)) {
+          forwardToInteraction(e);
+        }
+      }
+
+      private void forwardToInteraction(MouseEvent e) {
+        if (interaction.getPanel().isShowing()) {
+          // Convert Sidebar Coordinates -> CircuitPanel Coordinates
+          Point p = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), interaction.getPanel());
+
+          // Send a fake "Moved" event to the interaction engine
+          interaction.mouseMoved(new MouseEvent(
+              interaction.getPanel(),
+              MouseEvent.MOUSE_MOVED,
+              System.currentTimeMillis(),
+              0,
+              p.x, p.y,
+              0,
+              false));
+        }
       }
 
       @Override
@@ -290,7 +319,10 @@ public class ComponentPalette extends JPanel implements Scrollable {
       public void mouseExited(MouseEvent e) {
         button.setBackground(Theme.BUTTON_BACKGROUND);
       }
-    });
+    };
+
+    button.addMouseListener(listener);
+    button.addMouseMotionListener(listener);
 
     if (currentSection != null)
       currentSection.add(button);

@@ -130,14 +130,13 @@ public class GuiMain {
       timingScroll.getHorizontalScrollBar().setUnitIncrement(20);
       timingScroll.setBorder(null);
 
-      // Attach Header and Corner
+      // Attach Header and Corners
       timingScroll.setRowHeaderView(timingPanel.getRowHeader());
       timingScroll.setCorner(ScrollPaneConstants.UPPER_LEFT_CORNER, new JPanel() {
         {
           setBackground(Theme.PALETTE_BACKGROUND);
         }
       });
-
       timingScroll.setCorner(ScrollPaneConstants.LOWER_LEFT_CORNER, new JPanel() {
         {
           setBackground(Theme.PALETTE_BACKGROUND);
@@ -225,7 +224,6 @@ public class GuiMain {
       timingItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_D, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
 
-      // Skips to present on open
       timingItem.addActionListener(e -> {
         boolean visible = !timingFrame.isVisible();
         timingFrame.setVisible(visible);
@@ -234,7 +232,6 @@ public class GuiMain {
         }
       });
 
-      timingItem.addActionListener(e -> timingFrame.setVisible(!timingFrame.isVisible()));
       viewMenu.add(timingItem);
       viewMenu.addSeparator();
 
@@ -538,6 +535,15 @@ public class GuiMain {
     circuitPanel.updateTheme();
     palette.updateTheme();
 
+    if (Theme.isDarkMode) {
+      UIManager.put("CheckBoxMenuItem.checkIcon", new FlatCheckIcon());
+      UIManager.put("RadioButtonMenuItem.checkIcon", new FlatRadioIcon());
+    } else {
+      // Reset to default (null usually forces L&F to use its own)
+      UIManager.put("CheckBoxMenuItem.checkIcon", null);
+      UIManager.put("RadioButtonMenuItem.checkIcon", null);
+    }
+
     if (scrollPalette != null) {
       scrollPalette.setBackground(Theme.PALETTE_BACKGROUND);
       scrollPalette.getViewport().setBackground(Theme.PALETTE_BACKGROUND);
@@ -552,6 +558,7 @@ public class GuiMain {
 
     if (menuBar != null) {
       menuBar.setBackground(Theme.isDarkMode ? Theme.PALETTE_BACKGROUND : null);
+
       if (Theme.isDarkMode) {
         menuBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Theme.BUTTON_BORDER));
       } else {
@@ -564,6 +571,9 @@ public class GuiMain {
           styleMenu(m);
       }
 
+      // Force repaint of the menu structure to pick up new icons
+      SwingUtilities.updateComponentTreeUI(menuBar);
+
       if (zoomStatusLabel != null)
         zoomStatusLabel.setForeground(Theme.PALETTE_HEADINGS);
     }
@@ -572,9 +582,8 @@ public class GuiMain {
       SwingUtilities.updateComponentTreeUI(timingFrame);
     }
 
-    // --- FIX: Proper Theme Update for Timing Panel ---
     if (timingPanel != null) {
-      timingPanel.updateTheme(); // Use the new method
+      timingPanel.updateTheme();
     }
 
     if (timingScroll != null) {
@@ -582,10 +591,9 @@ public class GuiMain {
       timingScroll.getVerticalScrollBar().setUI(new ThemedScrollBarUI());
       timingScroll.getHorizontalScrollBar().setUI(new ThemedScrollBarUI());
 
-      // Update corner
-      JComponent corner = (JComponent) timingScroll.getCorner(ScrollPaneConstants.UPPER_LEFT_CORNER);
-      if (corner != null)
-        corner.setBackground(Theme.PALETTE_BACKGROUND);
+      JComponent cornerUL = (JComponent) timingScroll.getCorner(ScrollPaneConstants.UPPER_LEFT_CORNER);
+      if (cornerUL != null)
+        cornerUL.setBackground(Theme.PALETTE_BACKGROUND);
 
       JComponent cornerLL = (JComponent) timingScroll.getCorner(ScrollPaneConstants.LOWER_LEFT_CORNER);
       if (cornerLL != null)
@@ -601,7 +609,7 @@ public class GuiMain {
         if (c instanceof JButton) {
           JButton btn = (JButton) c;
           btn.setOpaque(true);
-          btn.setBorderPainted(false); // Flat look
+          btn.setBorderPainted(false);
           btn.setFocusPainted(false);
           btn.setBackground(Theme.BUTTON_BACKGROUND);
           btn.setForeground(Theme.TEXT_COLOR);
@@ -633,7 +641,6 @@ public class GuiMain {
         item.setBackground(Theme.PALETTE_BACKGROUND);
       }
 
-      // Remove default borders that create white "gutters"
       if (item instanceof JMenuItem) {
         item.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
       }
@@ -770,5 +777,71 @@ public class GuiMain {
         frame.setSize(prevSize);
     }
     frame.setVisible(true);
+  }
+
+  // --- Inner Classes for Flat Icons ---
+
+  private static class FlatCheckIcon implements Icon {
+    @Override
+    public int getIconWidth() {
+      return 16;
+    }
+
+    @Override
+    public int getIconHeight() {
+      return 16;
+    }
+
+    @Override
+    public void paintIcon(java.awt.Component c, Graphics g, int x, int y) {
+      Graphics2D g2 = (Graphics2D) g.create();
+      g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+      AbstractButton b = (AbstractButton) c;
+
+      // Draw Box
+      g2.setColor(Theme.TEXT_COLOR);
+      g2.setStroke(new BasicStroke(1.5f));
+      g2.drawRoundRect(x + 3, y + 3, 10, 10, 2, 2);
+
+      if (b.isSelected()) {
+        g2.setColor(Theme.WIRE_ON); // Use the green accent for check
+        // Draw tick
+        g2.drawLine(x + 5, y + 8, x + 7, y + 10);
+        g2.drawLine(x + 7, y + 10, x + 11, y + 5);
+      }
+      g2.dispose();
+    }
+  }
+
+  private static class FlatRadioIcon implements Icon {
+    @Override
+    public int getIconWidth() {
+      return 16;
+    }
+
+    @Override
+    public int getIconHeight() {
+      return 16;
+    }
+
+    @Override
+    public void paintIcon(java.awt.Component c, Graphics g, int x, int y) {
+      Graphics2D g2 = (Graphics2D) g.create();
+      g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+      AbstractButton b = (AbstractButton) c;
+
+      // Draw Circle Outline
+      g2.setColor(Theme.TEXT_COLOR);
+      g2.setStroke(new BasicStroke(1.5f));
+      g2.drawOval(x + 3, y + 3, 10, 10);
+
+      if (b.isSelected()) {
+        g2.setColor(Theme.WIRE_ON);
+        g2.fillOval(x + 6, y + 6, 5, 5);
+      }
+      g2.dispose();
+    }
   }
 }

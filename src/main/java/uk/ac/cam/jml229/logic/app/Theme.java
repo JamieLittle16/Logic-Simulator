@@ -21,7 +21,7 @@ public class Theme {
   public static Color PANEL_BACKGROUND = BACKGROUND;
   public static Color SELECTION_FILL = new Color(0, 120, 255, 50);
 
-  public static Color WIRE_ON = new Color(0, 200, 0);
+  public static Color WIRE_ON = new Color(0, 150, 0);
   public static Color WIRE_OFF = new Color(100, 100, 100);
   public static Color WIRE_SELECTED = new Color(0, 120, 255);
 
@@ -33,6 +33,10 @@ public class Theme {
   public static Color GENERIC_BOX_FILL = new Color(230, 230, 230);
   public static Color GENERIC_HEADER_FILL = new Color(100, 100, 255);
   public static Color SWITCH_FILL = new Color(200, 200, 200);
+
+  // --- NEW: Switch Active Color (Customisable) ---
+  public static Color SWITCH_ON = new Color(100, 255, 100);
+
   public static Color CLOCK_BACKGROUND = new Color(40, 40, 40);
 
   public static Color PIN_COLOR = new Color(0, 0, 150);
@@ -44,8 +48,7 @@ public class Theme {
   public static Color BUTTON_BACKGROUND = Color.WHITE;
   public static Color BUTTON_BORDER = new Color(200, 200, 200);
 
-  // --- NEW: Hover & Scrollbar Colors ---
-  public static Color BUTTON_HOVER = new Color(235, 245, 255);
+  public static Color BUTTON_HOVER = new Color(200, 225, 255);
   public static Color SCROLL_TRACK = new Color(245, 245, 245);
   public static Color SCROLL_THUMB = new Color(200, 200, 200);
 
@@ -101,8 +104,7 @@ public class Theme {
     BUTTON_BACKGROUND = parseColor(p, "buttonBackground", BUTTON_BACKGROUND);
     BUTTON_BORDER = parseColor(p, "buttonBorder", BUTTON_BORDER);
 
-    // --- Defaults for new properties ---
-    Color defHover = isDarkMode ? new Color(60, 60, 60) : new Color(235, 245, 255);
+    Color defHover = isDarkMode ? new Color(60, 60, 60) : new Color(200, 225, 255);
     Color defScrollTrack = isDarkMode ? PALETTE_BACKGROUND : new Color(245, 245, 245);
     Color defScrollThumb = isDarkMode ? new Color(80, 80, 80) : new Color(200, 200, 200);
 
@@ -110,7 +112,10 @@ public class Theme {
     SCROLL_TRACK = parseColor(p, "scrollTrack", defScrollTrack);
     SCROLL_THUMB = parseColor(p, "scrollThumb", defScrollThumb);
 
-    // Derived overrides
+    // --- NEW: Parse switch active color ---
+    // If not in file, default to WIRE_ON (Unified look)
+    SWITCH_ON = parseColor(p, "switchOn", WIRE_ON);
+
     Color defBox = isDarkMode ? COMP_FILL_GRADIENT_1 : new Color(230, 230, 230);
     Color defHeader = isDarkMode ? COMP_BORDER : new Color(100, 100, 255);
     Color defSwitch = isDarkMode ? COMP_FILL_GRADIENT_2 : new Color(200, 200, 200);
@@ -119,7 +124,6 @@ public class Theme {
     GENERIC_HEADER_FILL = parseColor(p, "genericHeaderFill", defHeader);
     SWITCH_FILL = parseColor(p, "switchFill", defSwitch);
 
-    // Finalize Aliases
     GRID_COLOR = GRID_MAJOR;
     PANEL_BACKGROUND = BACKGROUND;
     SELECTION_FILL = new Color(SELECTION_BORDER.getRed(), SELECTION_BORDER.getGreen(), SELECTION_BORDER.getBlue(), 50);
@@ -139,28 +143,35 @@ public class Theme {
   public static void setDarkMode(boolean dark) {
     isDarkMode = dark;
     if (dark) {
+      // --- DARK MODE ---
       BACKGROUND = new Color(30, 30, 30);
       GRID_MAJOR = new Color(50, 50, 50);
       GRID_MINOR = new Color(40, 40, 40);
       TEXT_COLOR = new Color(220, 220, 220);
-      WIRE_ON = new Color(0, 255, 0);
-      WIRE_OFF = new Color(80, 80, 80);
-      WIRE_SELECTED = new Color(0, 150, 255);
-      COMP_BORDER = new Color(180, 180, 180);
-      COMP_FILL_GRADIENT_1 = new Color(60, 60, 60);
-      COMP_FILL_GRADIENT_2 = new Color(40, 40, 40);
-      SELECTION_BORDER = new Color(50, 150, 255);
+
+      WIRE_ON = new Color(46, 204, 113);
+      WIRE_OFF = new Color(85, 90, 100);
+      WIRE_SELECTED = new Color(52, 152, 219);
+
+      SWITCH_ON = new Color(46, 204, 113); // Match wires in Dark Mode
+
+      COMP_BORDER = new Color(120, 120, 120);
+      COMP_FILL_GRADIENT_1 = new Color(45, 45, 48);
+      COMP_FILL_GRADIENT_2 = new Color(37, 37, 38);
+
+      SELECTION_BORDER = new Color(52, 152, 219);
       PIN_COLOR = new Color(100, 200, 255);
       STUB_COLOR = new Color(100, 100, 100);
       HOVER_COLOR = new Color(255, 100, 100);
-      CLOCK_BACKGROUND = new Color(20, 20, 20);
+
+      CLOCK_BACKGROUND = new Color(25, 25, 25);
+
       PALETTE_BACKGROUND = new Color(37, 37, 38);
       PALETTE_HEADINGS = new Color(200, 200, 200);
-      BUTTON_BACKGROUND = new Color(45, 45, 45);
+      BUTTON_BACKGROUND = new Color(50, 50, 50);
       BUTTON_BORDER = new Color(80, 80, 80);
+      BUTTON_HOVER = new Color(70, 70, 70);
 
-      // NEW Defaults for Dark Mode
-      BUTTON_HOVER = new Color(60, 60, 60);
       SCROLL_TRACK = new Color(37, 37, 38);
       SCROLL_THUMB = new Color(80, 80, 80);
 
@@ -169,34 +180,45 @@ public class Theme {
       SWITCH_FILL = COMP_FILL_GRADIENT_2;
 
     } else {
-      BACKGROUND = Color.WHITE;
-      GRID_MAJOR = new Color(220, 220, 220);
-      GRID_MINOR = new Color(240, 240, 240);
-      TEXT_COLOR = Color.BLACK;
-      WIRE_ON = new Color(0, 200, 0);
-      WIRE_OFF = new Color(100, 100, 100);
+      // --- LIGHT MODE (Updated) ---
+      BACKGROUND = new Color(250, 250, 250);
+      GRID_MAJOR = new Color(225, 225, 225);
+      GRID_MINOR = new Color(245, 245, 245);
+      TEXT_COLOR = new Color(30, 30, 30);
+
+      // Darker Forest Green
+      WIRE_ON = new Color(0, 150, 0);
+      WIRE_OFF = new Color(160, 160, 170);
       WIRE_SELECTED = new Color(0, 120, 255);
-      COMP_BORDER = Color.BLACK;
-      COMP_FILL_GRADIENT_1 = new Color(240, 240, 255);
-      COMP_FILL_GRADIENT_2 = new Color(200, 200, 255);
+
+      // Switch matches Wire
+      SWITCH_ON = new Color(0, 150, 0);
+
+      COMP_BORDER = new Color(50, 50, 50);
+
+      // Light Blue Gates (Sky / Alice Blue)
+      COMP_FILL_GRADIENT_1 = new Color(225, 245, 255);
+      COMP_FILL_GRADIENT_2 = new Color(200, 230, 255);
+
       SELECTION_BORDER = new Color(0, 120, 255);
-      PIN_COLOR = new Color(0, 0, 150);
-      STUB_COLOR = Color.GRAY;
-      HOVER_COLOR = new Color(255, 100, 100);
+      PIN_COLOR = new Color(0, 80, 180);
+      STUB_COLOR = new Color(150, 150, 150);
+      HOVER_COLOR = new Color(255, 80, 80);
+
       CLOCK_BACKGROUND = new Color(40, 40, 40);
-      PALETTE_BACKGROUND = new Color(245, 245, 245);
-      PALETTE_HEADINGS = new Color(80, 80, 80);
+
+      PALETTE_BACKGROUND = new Color(240, 242, 245);
+      PALETTE_HEADINGS = new Color(100, 100, 100);
       BUTTON_BACKGROUND = Color.WHITE;
-      BUTTON_BORDER = new Color(200, 200, 200);
+      BUTTON_BORDER = new Color(210, 210, 210);
+      BUTTON_HOVER = new Color(200, 225, 255);
 
-      // NEW Defaults for Light Mode
-      BUTTON_HOVER = new Color(235, 245, 255);
-      SCROLL_TRACK = new Color(245, 245, 245);
-      SCROLL_THUMB = new Color(200, 200, 200);
+      SCROLL_TRACK = PALETTE_BACKGROUND;
+      SCROLL_THUMB = new Color(200, 200, 210);
 
-      GENERIC_BOX_FILL = new Color(230, 230, 230);
+      GENERIC_BOX_FILL = new Color(235, 235, 235);
       GENERIC_HEADER_FILL = new Color(100, 100, 255);
-      SWITCH_FILL = new Color(200, 200, 200);
+      SWITCH_FILL = new Color(220, 220, 220);
     }
 
     GRID_COLOR = GRID_MAJOR;

@@ -290,20 +290,49 @@ public class ComponentPainter {
   }
 
   private void drawSwitch(Graphics2D g2, Switch s, int x, int y, boolean sel) {
+    int w = 40;
+    int h = 16; // Thinner track
+    int arc = 16;
+    int sy = y + 12; // Centered vertically in 40px space
+
+    // Draw Selection Outline
     if (sel) {
       g2.setColor(Theme.SELECTION_BORDER);
-      g2.setStroke(new BasicStroke(5));
-      g2.drawRoundRect(x, y + 5, 40, 30, 15, 15);
+      g2.setStroke(new BasicStroke(3));
+      g2.drawRoundRect(x - 2, sy - 2, w + 4, h + 4, arc + 4, arc + 4);
     }
+
+    // Draw Track (Background)
     g2.setColor(Theme.SWITCH_FILL);
-    g2.fillRoundRect(x, y + 5, 40, 30, 30, 30);
-    boolean on = s.getState();
-    int circleX = on ? x + 22 : x + 2;
-    g2.setColor(on ? new Color(100, 255, 100) : new Color(200, 200, 200));
-    g2.fillOval(circleX, y + 7, 26, 26);
-    g2.setColor(Color.BLACK);
+    g2.fillRoundRect(x, sy, w, h, arc, arc);
+    // Track Border for definition
+    g2.setColor(Theme.COMP_BORDER);
     g2.setStroke(new BasicStroke(1));
-    g2.drawOval(circleX, y + 7, 26, 26);
+    g2.drawRoundRect(x, sy, w, h, arc, arc);
+
+    // Draw Thumb (Button)
+    boolean on = s.getState();
+    int thumbSize = 22;
+    int thumbY = sy - (thumbSize - h) / 2;
+    // Calculation: x (OFF) vs x + width - thumbSize (ON)
+    int thumbX = on ? (x + w - thumbSize) : x;
+
+    // Gradient for 3D effect
+    Color baseColor = on ? Theme.SWITCH_ON : new Color(220, 220, 220);
+    GradientPaint gp = new GradientPaint(
+        thumbX, thumbY, baseColor.brighter(),
+        thumbX + thumbSize, thumbY + thumbSize, baseColor.darker());
+    g2.setPaint(gp);
+    g2.fillOval(thumbX, thumbY, thumbSize, thumbSize);
+
+    // Thumb Border
+    g2.setColor(new Color(50, 50, 50, 100));
+    g2.setStroke(new BasicStroke(1));
+    g2.drawOval(thumbX, thumbY, thumbSize, thumbSize);
+
+    // Gloss Highlight (Top Left)
+    g2.setColor(new Color(255, 255, 255, 100));
+    g2.fillOval(thumbX + 4, thumbY + 4, 6, 6);
   }
 
   private void drawClock(Graphics2D g2, Clock c, int x, int y, boolean sel) {
@@ -319,7 +348,7 @@ public class ComponentPainter {
     g2.drawRoundRect(x, y + 5, 40, 30, 5, 5);
 
     boolean on = c.getState();
-    g2.setColor(on ? new Color(100, 255, 100) : new Color(100, 100, 100));
+    g2.setColor(on ? Theme.SWITCH_ON : new Color(100, 100, 100));
     g2.setStroke(new BasicStroke(2));
     Path2D wave = new Path2D.Double();
     int sy = y + 25;

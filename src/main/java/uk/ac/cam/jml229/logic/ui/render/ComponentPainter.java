@@ -15,10 +15,6 @@ public class ComponentPainter {
 
   private static final int PIN_SIZE = 8;
 
-  // ==========================================
-  // Public Entry Point
-  // ==========================================
-
   public void drawComponent(Graphics2D g2, Component c, boolean sel, boolean drawLabel) {
     AffineTransform oldTx = g2.getTransform();
     int x = c.getX();
@@ -28,18 +24,14 @@ public class ComponentPainter {
     int cx = x + dim.width / 2;
     int cy = y + dim.height / 2;
 
-    // Apply Component Rotation
     g2.rotate(Math.toRadians(c.getRotation() * 90), cx, cy);
 
-    // Identify Type from Registry
     String typeId = ComponentRegistry.fromComponent(c)
         .map(ComponentRegistry::getId)
         .orElse("CUSTOM");
 
-    // Dispatch to specific drawer
     dispatchDraw(g2, c, typeId, sel);
 
-    // Draw Label (if applicable)
     if (drawLabel && shouldDrawLabel(typeId)) {
       drawLabel(g2, c, x, y, dim);
     }
@@ -51,19 +43,14 @@ public class ComponentPainter {
     int x = c.getX();
     int y = c.getY();
     switch (id) {
-      // IO
       case "SWITCH" -> drawSwitch(g2, (Switch) c, x, y, sel);
       case "LIGHT" -> drawLight(g2, (OutputProbe) c, x, y, sel);
       case "SEVEN_SEG" -> drawSevenSegment(g2, (SevenSegmentDisplay) c, x, y, sel);
       case "HEX" -> drawHexDisplay(g2, (HexDisplay) c, x, y, sel);
-
-      // Sequential
       case "CLOCK" -> drawClock(g2, (Clock) c, x, y, sel);
       case "D_FF" -> drawDFlipFlop(g2, (DFlipFlop) c, x, y, sel);
       case "JK_FF" -> drawJKFlipFlop(g2, (JKFlipFlop) c, x, y, sel);
       case "T_FF" -> drawTFlipFlop(g2, (TFlipFlop) c, x, y, sel);
-
-      // Gates
       case "AND" -> drawAndGate(g2, c, x, y, sel);
       case "OR" -> drawOrGate(g2, c, x, y, sel);
       case "NOT" -> drawNotGate(g2, c, x, y, sel);
@@ -71,10 +58,7 @@ public class ComponentPainter {
       case "NOR" -> drawNorGate(g2, c, x, y, sel);
       case "XOR" -> drawXorGate(g2, c, x, y, sel);
       case "BUFFER" -> drawBufferGate(g2, c, x, y, sel);
-
-      // Misc
       case "LABEL" -> drawTextLabel(g2, (TextLabel) c, x, y, sel);
-
       default -> drawGenericBox(g2, c, x, y, sel);
     }
   }
@@ -105,9 +89,7 @@ public class ComponentPainter {
     int outCount = c.getOutputCount();
     boolean hasBubbleOutput = (c instanceof NandGate || c instanceof NorGate);
     for (int i = 0; i < outCount; i++) {
-      // Use center (h/2) if single output, otherwise stack them
       int yOffset = (outCount == 1) ? h / 2 : 10 + (i * 20);
-
       int startX = hasBubbleOutput ? w + 5 : w;
       if (c instanceof Switch && outCount == 1)
         startX = 40;
@@ -143,10 +125,7 @@ public class ComponentPainter {
     g2.fillOval(p.x - PIN_SIZE / 2, p.y - PIN_SIZE / 2, PIN_SIZE, PIN_SIZE);
   }
 
-  // ==========================================
-  // Layout Helpers
-  // ==========================================
-
+  // --- Layout Helpers (unchanged) ---
   public Point getPinLocation(Component c, boolean isInput, int index) {
     Dimension dim = getComponentSize(c);
     int w = dim.width;
@@ -158,7 +137,6 @@ public class ComponentPainter {
       dx = w + 10;
       if (c instanceof DFlipFlop || c instanceof JKFlipFlop || c instanceof TFlipFlop)
         dx = 50;
-
       dy = (outCount <= 1) ? h / 2 : 10 + (index * 20);
     } else {
       int inCount = getInputCount(c);
@@ -191,7 +169,6 @@ public class ComponentPainter {
   public Dimension getComponentSize(Component c) {
     int w = 50;
     int h = 40;
-
     if (c instanceof DFlipFlop || c instanceof TFlipFlop) {
       w = 40;
       h = 40;
@@ -205,13 +182,10 @@ public class ComponentPainter {
       w = 60;
       h = 80;
     } else if (c instanceof TextLabel) {
-      String txt = c.getName();
-      w = Math.max(60, txt.length() * 12 + 20);
+      w = Math.max(60, c.getName().length() * 12 + 20);
       h = 30;
     } else {
-      int inputCount = getInputCount(c);
-      int outputCount = c.getOutputCount();
-      int maxPins = Math.max(inputCount, outputCount);
+      int maxPins = Math.max(getInputCount(c), c.getOutputCount());
       h = Math.max(40, maxPins * 20);
     }
     return new Dimension(w, h);
@@ -219,17 +193,13 @@ public class ComponentPainter {
 
   public Rectangle getComponentBounds(Component c) {
     Dimension d = getComponentSize(c);
-    int w = d.width;
-    int h = d.height;
     if (c.getRotation() == 1 || c.getRotation() == 3) {
-      return new Rectangle(c.getX() + (w - h) / 2, c.getY() + (h - w) / 2, h, w);
+      return new Rectangle(c.getX() + (d.width - d.height) / 2, c.getY() + (d.height - d.width) / 2, d.height, d.width);
     }
-    return new Rectangle(c.getX(), c.getY(), w, h);
+    return new Rectangle(c.getX(), c.getY(), d.width, d.height);
   }
 
-  // ==========================================
-  // Drawing Implementations
-  // ==========================================
+  // --- Drawing Implementations ---
 
   private void drawLabel(Graphics2D g2, Component c, int x, int y, Dimension dim) {
     g2.setColor(Theme.TEXT_COLOR);
@@ -237,11 +207,10 @@ public class ComponentPainter {
     FontMetrics fm = g2.getFontMetrics();
     String name = c.getName();
     int tw = fm.stringWidth(name);
-
     int tx = x + (dim.width - tw) / 2;
     int ty = y - 5;
 
-    if (c.getRotation() == 2) { // Counter-rotate if upside down
+    if (c.getRotation() == 2) {
       AffineTransform saved = g2.getTransform();
       g2.rotate(Math.PI, x + dim.width / 2.0, ty - fm.getAscent() / 2.0);
       g2.drawString(name, tx, ty);
@@ -266,7 +235,7 @@ public class ComponentPainter {
     g2.setStroke(new BasicStroke(2));
     g2.drawRect(x, y, d.width, d.height);
 
-    g2.setColor(Color.WHITE);
+    g2.setColor(Theme.TEXT_INVERTED); // Theme dependent!
     g2.setFont(new Font("SansSerif", Font.BOLD, 10));
     FontMetrics fm = g2.getFontMetrics();
     String name = c.getName();
@@ -279,9 +248,7 @@ public class ComponentPainter {
 
     if (c.getRotation() == 2) {
       AffineTransform saved = g2.getTransform();
-      double centerX = tx + textWidth / 2.0;
-      double centerY = ty - fm.getAscent() / 2.0;
-      g2.rotate(Math.PI, centerX, centerY);
+      g2.rotate(Math.PI, tx + textWidth / 2.0, ty - fm.getAscent() / 2.0);
       g2.drawString(name, tx, ty);
       g2.setTransform(saved);
     } else {
@@ -291,47 +258,39 @@ public class ComponentPainter {
 
   private void drawSwitch(Graphics2D g2, Switch s, int x, int y, boolean sel) {
     int w = 40;
-    int h = 16; // Thinner track
+    int h = 16;
     int arc = 16;
-    int sy = y + 12; // Centered vertically in 40px space
+    int sy = y + 12;
 
-    // Draw Selection Outline
     if (sel) {
       g2.setColor(Theme.SELECTION_BORDER);
       g2.setStroke(new BasicStroke(3));
       g2.drawRoundRect(x - 2, sy - 2, w + 4, h + 4, arc + 4, arc + 4);
     }
 
-    // Draw Track (Background)
     g2.setColor(Theme.SWITCH_FILL);
     g2.fillRoundRect(x, sy, w, h, arc, arc);
-    // Track Border for definition
     g2.setColor(Theme.COMP_BORDER);
     g2.setStroke(new BasicStroke(1));
     g2.drawRoundRect(x, sy, w, h, arc, arc);
 
-    // Draw Thumb (Button)
     boolean on = s.getState();
     int thumbSize = 22;
     int thumbY = sy - (thumbSize - h) / 2;
-    // Calculation: x (OFF) vs x + width - thumbSize (ON)
     int thumbX = on ? (x + w - thumbSize) : x;
 
-    // Gradient for 3D effect
-    Color baseColor = on ? Theme.SWITCH_ON : new Color(220, 220, 220);
+    Color baseColor = on ? Theme.SWITCH_ON : Theme.SWITCH_OFF; // Theme dependent
     GradientPaint gp = new GradientPaint(
         thumbX, thumbY, baseColor.brighter(),
         thumbX + thumbSize, thumbY + thumbSize, baseColor.darker());
     g2.setPaint(gp);
     g2.fillOval(thumbX, thumbY, thumbSize, thumbSize);
 
-    // Thumb Border
-    g2.setColor(new Color(50, 50, 50, 100));
+    g2.setColor(Theme.SWITCH_SHADOW);
     g2.setStroke(new BasicStroke(1));
     g2.drawOval(thumbX, thumbY, thumbSize, thumbSize);
 
-    // Gloss Highlight (Top Left)
-    g2.setColor(new Color(255, 255, 255, 100));
+    g2.setColor(Theme.SWITCH_HIGHLIGHT);
     g2.fillOval(thumbX + 4, thumbY + 4, 6, 6);
   }
 
@@ -348,7 +307,8 @@ public class ComponentPainter {
     g2.drawRoundRect(x, y + 5, 40, 30, 5, 5);
 
     boolean on = c.getState();
-    g2.setColor(on ? Theme.SWITCH_ON : new Color(100, 100, 100));
+    g2.setColor(on ? Theme.SWITCH_ON : new Color(100, 100, 100)); // Uses Switch/Wire color
+
     g2.setStroke(new BasicStroke(2));
     Path2D wave = new Path2D.Double();
     int sy = y + 25;
@@ -369,24 +329,30 @@ public class ComponentPainter {
       g2.drawOval(x, y, 40, 40);
     }
     boolean on = p.getState();
-    Color core = on ? new Color(255, 220, 0) : new Color(50, 50, 50);
+    Color core = on ? Theme.LED_ON : Theme.LED_OFF; // Theme dependent
+
     if (on) {
       float[] dist = { 0.0f, 0.7f, 1.0f };
-      Color[] colors = { new Color(255, 255, 200, 200), new Color(255, 220, 0, 100), new Color(0, 0, 0, 0) };
+      Color led = Theme.LED_ON;
+      Color glowInner = new Color(led.getRed(), led.getGreen(), led.getBlue(), 200);
+      Color glowOuter = new Color(led.getRed(), led.getGreen(), led.getBlue(), 100);
+      Color[] colors = { glowInner, glowOuter, new Color(0, 0, 0, 0) };
       RadialGradientPaint glow = new RadialGradientPaint(new Point2D.Float(x + 20, y + 20), 35, dist, colors);
       g2.setPaint(glow);
       g2.fillOval(x - 15, y - 15, 70, 70);
     }
+
     g2.setPaint(new GradientPaint(x, y, core.brighter(), x + 30, y + 30, core.darker()));
     g2.fillOval(x, y, 40, 40);
-    g2.setColor(Color.BLACK);
+    g2.setColor(Theme.COMP_BORDER);
     g2.setStroke(new BasicStroke(2));
     g2.drawOval(x, y, 40, 40);
-    g2.setColor(new Color(255, 255, 255, 100));
+
+    g2.setColor(Theme.LED_REFLECTION); // Theme dependent
     g2.fillOval(x + 10, y + 8, 12, 8);
   }
 
-  // --- Flip Flops ---
+  // --- Flip Flops (unchanged) ---
   private void drawFlipFlopBase(Graphics2D g2, Component c, int x, int y, int w, int h, boolean sel) {
     if (sel) {
       g2.setColor(Theme.SELECTION_BORDER);
@@ -443,26 +409,26 @@ public class ComponentPainter {
       g2.setStroke(new BasicStroke(5));
       g2.drawRect(x, y, w, h);
     }
-    g2.setColor(new Color(20, 20, 20));
+    g2.setColor(Theme.DISPLAY_HOUSING); // Theme
     g2.fillRect(x, y, w, h);
-    g2.setColor(Color.GRAY);
+    g2.setColor(Theme.DISPLAY_BORDER); // Theme
     g2.setStroke(new BasicStroke(2));
     g2.drawRect(x, y, w, h);
     int dispW = 50;
     int dispH = 80;
     int dispX = x + (w - dispW) / 2;
     int dispY = y + (h - dispH) / 2;
-    g2.setColor(new Color(40, 40, 40));
+    g2.setColor(Theme.DISPLAY_SCREEN); // Theme
     g2.fillRect(dispX, dispY, dispW, dispH);
     int[][] segs = { { 10, 10, 30, 5 }, { 40, 15, 5, 25 }, { 40, 45, 5, 25 }, { 10, 70, 30, 5 }, { 5, 45, 5, 25 },
         { 5, 15, 5, 25 }, { 10, 40, 30, 5 } };
     for (int i = 0; i < 7; i++) {
       boolean on = check.isOn(i);
-      g2.setColor(on ? new Color(255, 50, 50) : new Color(60, 0, 0));
+      g2.setColor(on ? Theme.SEGMENT_ON : Theme.SEGMENT_OFF); // Theme
       g2.fillRect(dispX + segs[i][0], dispY + segs[i][1], segs[i][2], segs[i][3]);
     }
     boolean dp = check.isOn(7);
-    g2.setColor(dp ? new Color(255, 50, 50) : new Color(60, 0, 0));
+    g2.setColor(dp ? Theme.SEGMENT_ON : Theme.SEGMENT_OFF);
     g2.fillOval(dispX + 40, dispY + 70, 5, 5);
   }
 
@@ -474,10 +440,7 @@ public class ComponentPainter {
     drawDisplayImpl(g2, x, y, 60, 80, sel, c::isSegmentOn);
   }
 
-  // ==========================================
-  // Multi-Input Logic Gates
-  // ==========================================
-
+  // --- Logic Gates ---
   private void fillGate(Graphics2D g2, Path2D p, boolean sel) {
     if (sel) {
       g2.setColor(Theme.SELECTION_BORDER);
@@ -498,34 +461,30 @@ public class ComponentPainter {
       g2.setStroke(new BasicStroke(5));
       g2.drawOval(x, y, 10, 10);
     }
-    g2.setColor(Color.WHITE);
+    g2.setColor(Theme.GATE_BUBBLE_FILL); // Theme dependent
     g2.fillOval(x, y, 10, 10);
     g2.setColor(Theme.COMP_BORDER);
     g2.setStroke(new BasicStroke(2));
     g2.drawOval(x, y, 10, 10);
   }
 
-  // --- RAIL HELPER ---
+  // --- Helper to draw the input rail for multi-input gates ---
   private void drawRail(Graphics2D g2, int x, int y, int height) {
-    // Vertical Rail Line
     g2.setColor(Theme.COMP_BORDER);
     g2.setStroke(new BasicStroke(2));
     g2.drawLine(x, y + 10, x, y + height - 10);
-
-    // Horizontal "Feeder" to gate body center
     int centerY = y + height / 2;
     g2.drawLine(x, centerY, x + 5, centerY);
   }
 
+  // Gate drawing implementations (AND, OR, XOR, etc.) - same structure, just
+  // using drawBubble/fillGate
   private void drawAndGate(Graphics2D g2, Component c, int x, int y, boolean sel) {
     int inputCount = c.getInputCount();
     int height = getComponentSize(c).height;
     int yOffset = (inputCount > 2) ? (height - 40) / 2 : 0;
-
     if (inputCount > 2)
       drawRail(g2, x, y, height);
-
-    // Draw centered body
     Path2D p = new Path2D.Double();
     int by = y + yOffset;
     p.moveTo(x, by);
@@ -540,15 +499,12 @@ public class ComponentPainter {
     int inputCount = c.getInputCount();
     int height = getComponentSize(c).height;
     int yOffset = (inputCount > 2) ? (height - 40) / 2 : 0;
-
     if (inputCount > 2) {
       drawRail(g2, x, y, height);
-      // Small connector for OR gate indentation
       int centerY = y + height / 2;
       g2.setColor(Theme.COMP_BORDER);
       g2.drawLine(x + 5, centerY, x + 10, centerY);
     }
-
     Path2D p = new Path2D.Double();
     int by = y + yOffset;
     p.moveTo(x, by);
@@ -563,25 +519,19 @@ public class ComponentPainter {
     int inputCount = c.getInputCount();
     int height = getComponentSize(c).height;
     int yOffset = (inputCount > 2) ? (height - 40) / 2 : 0;
-
     int xShift = 0;
     if (inputCount > 2) {
       drawRail(g2, x, y, height);
-      // XOR needs to shift right so the rail doesn't overlap the detached curve
       xShift = 5;
-      // Connect Rail to Detached Curve
       int centerY = y + height / 2;
       g2.setColor(Theme.COMP_BORDER);
       g2.drawLine(x, centerY, x + xShift, centerY);
     }
-
     int bx = x + xShift;
     int by = y + yOffset;
-
     Path2D b = new Path2D.Double();
     b.moveTo(bx - 4, by);
     b.quadTo(bx + 11, by + 20, bx - 4, by + 40);
-
     if (sel) {
       g2.setColor(Theme.SELECTION_BORDER);
       g2.setStroke(new BasicStroke(5));
@@ -590,9 +540,6 @@ public class ComponentPainter {
     g2.setColor(Theme.COMP_BORDER);
     g2.setStroke(new BasicStroke(2));
     g2.draw(b);
-
-    // Draw the OR part shifted
-    // We reuse the OR path logic but manually here to apply shift
     Path2D p = new Path2D.Double();
     int orX = bx + 5;
     p.moveTo(orX, by);
@@ -621,10 +568,7 @@ public class ComponentPainter {
     int inputCount = c.getInputCount();
     int height = getComponentSize(c).height;
     int yOffset = (inputCount > 2) ? (height - 40) / 2 : 0;
-
-    drawAndGate(g2, c, x, y, sel); // This draws rail + body
-
-    // Bubble (needs to be centered relative to the body, not top-left)
+    drawAndGate(g2, c, x, y, sel);
     int by = y + yOffset;
     drawBubble(g2, x + 45, by + 15, sel);
   }
@@ -633,10 +577,7 @@ public class ComponentPainter {
     int inputCount = c.getInputCount();
     int height = getComponentSize(c).height;
     int yOffset = (inputCount > 2) ? (height - 40) / 2 : 0;
-
-    drawOrGate(g2, c, x, y, sel); // This draws rail + body
-
-    // Bubble
+    drawOrGate(g2, c, x, y, sel);
     int by = y + yOffset;
     drawBubble(g2, x + 45, by + 15, sel);
   }
@@ -645,25 +586,17 @@ public class ComponentPainter {
     String text = c.getName();
     g2.setFont(new Font("SansSerif", Font.BOLD, 14));
     FontMetrics fm = g2.getFontMetrics();
-
     Dimension dim = getComponentSize(c);
     int w = dim.width;
     int h = dim.height;
-
-    // Draw Selection Box
     if (sel) {
       g2.setColor(Theme.SELECTION_BORDER);
       g2.setStroke(new BasicStroke(1));
       g2.drawRect(x, y, w, h);
     }
-
-    // Draw Text Centered in that box
     int textW = fm.stringWidth(text);
-    // Center X
     int textX = x + (w - textW) / 2;
-    // Center Y (Baseline offset)
     int textY = y + ((h - fm.getHeight()) / 2) + fm.getAscent();
-
     g2.setColor(Theme.TEXT_COLOR);
     g2.drawString(text, textX, textY);
   }

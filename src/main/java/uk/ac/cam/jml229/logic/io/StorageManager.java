@@ -8,6 +8,7 @@ import java.awt.Point;
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.components.gates.LogicGate;
+import uk.ac.cam.jml229.logic.components.io.Switch;
 import uk.ac.cam.jml229.logic.core.Circuit;
 import uk.ac.cam.jml229.logic.core.Wire;
 
@@ -163,6 +164,10 @@ public class StorageManager {
         extra += " DELAY:" + c.getCustomDelay();
       }
 
+      if (c instanceof Switch) {
+        extra += " IS_ON:" + ((Switch) c).getState();
+      }
+
       writer.printf("COMP %s %d %d %d %d%s%n", type, id, c.getX(), c.getY(), c.getRotation(), extra);
     }
 
@@ -246,6 +251,15 @@ public class StorageManager {
               int d = Integer.parseInt(part.substring(6));
               c.setCustomDelay(d);
             } catch (NumberFormatException e) {
+              // ignore
+            }
+          }
+
+          if (part.startsWith("IS_ON:") && c instanceof Switch) {
+            try {
+              boolean isOn = Boolean.parseBoolean(part.substring(6));
+              ((Switch) c).toggle(isOn);
+            } catch (Exception e) {
               // ignore
             }
           }

@@ -37,9 +37,11 @@ public class GuiMain {
   private static JFrame frame;
   private static JLabel zoomStatusLabel;
 
-  // --- NEW: Timing Window Variables ---
+  // --- Timing Window UI Elements ---
   private static JFrame timingFrame;
   private static TimingPanel timingPanel;
+  private static JScrollPane timingScroll;
+  private static JToolBar timingTools;
 
   private static JScrollPane scrollPalette;
   private static JMenuBar menuBar;
@@ -84,13 +86,14 @@ public class GuiMain {
       palette = new ComponentPalette(interaction, renderer);
       interaction.setPalette(palette);
 
-      // --- NEW: Init Timing Window with Toolbar ---
+      // --- Init Timing Window ---
       timingPanel = new TimingPanel();
       timingFrame = new JFrame("Timing Diagram");
       timingFrame.setSize(900, 500);
       timingFrame.setLayout(new BorderLayout());
 
-      JToolBar timingTools = new JToolBar();
+      // Toolbar
+      timingTools = new JToolBar();
       timingTools.setFloatable(false);
 
       JButton playPauseBtn = new JButton("Pause");
@@ -114,16 +117,18 @@ public class GuiMain {
 
       timingFrame.add(timingTools, BorderLayout.NORTH);
 
-      JScrollPane timingScroll = new JScrollPane(timingPanel);
+      // Scroll Pane
+      timingScroll = new JScrollPane(timingPanel);
       timingScroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
       timingScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
       timingScroll.getVerticalScrollBar().setUnitIncrement(20);
       timingScroll.getHorizontalScrollBar().setUnitIncrement(20);
+      timingScroll.setBorder(null);
+
       timingFrame.add(timingScroll, BorderLayout.CENTER);
       timingFrame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-      // ---------------------------------------------
 
-      // --- Hook Simulation to Timing ---
+      // --- Simulation Controller ---
       simController = new SimulationController(circuitPanel.getCircuit(), () -> {
         circuitPanel.repaint();
         if (timingFrame != null && timingFrame.isVisible()) {
@@ -134,7 +139,7 @@ public class GuiMain {
 
       circuitPanel.setOnCircuitChanged(newCircuit -> simController.setCircuit(newCircuit));
 
-      // --- NEW: Hook up Context Menu Listener ---
+      // Hook up interaction listener
       interaction.setOnOpenTiming(selection -> addSelectionToTiming(selection));
 
       // --- Build Menu Bar ---
@@ -191,7 +196,6 @@ public class GuiMain {
       editMenu.add(deleteItem);
 
       JMenu viewMenu = new JMenu("View");
-      // --- NEW: View Timing Item ---
       JMenuItem timingItem = new JMenuItem("Show Timing Diagram");
       timingItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_D, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
@@ -203,19 +207,10 @@ public class GuiMain {
       ButtonGroup themeGroup = new ButtonGroup();
 
       String[] builtIns = {
-          "Default Light",
-          "Default Dark",
-          "One Dark",
-          "Catppuccin Mocha",
-          "High Contrast",
-          "Dracula",
-          "Monokai",
-          "Nord",
-          "Solarized Light",
-          "GitHub Light",
-          "Blueprint",
-          "Cyberpunk",
-          "Gruvbox Dark"
+          "Default Light", "Default Dark", "One Dark", "Catppuccin Mocha",
+          "High Contrast", "Dracula", "Monokai", "Nord",
+          "Solarized Light", "GitHub Light", "Blueprint",
+          "Cyberpunk", "Gruvbox Dark"
       };
 
       List<String> allThemes = new ArrayList<>(List.of(builtIns));
@@ -270,9 +265,7 @@ public class GuiMain {
       viewMenu.addSeparator();
       viewMenu.add(snapGridItem);
 
-      // --- NEW: Tools Menu ---
       JMenu toolsMenu = new JMenu("Tools");
-
       JMenuItem autoLayoutItem = new JMenuItem("Auto-Organize Circuit");
       autoLayoutItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_L, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
@@ -281,7 +274,6 @@ public class GuiMain {
         circuitPanel.repaint();
         circuitPanel.getInteraction().saveHistory();
       });
-
       JMenuItem addProbeItem = new JMenuItem("Add Selected to Timing Diagram");
       addProbeItem.setAccelerator(
           KeyStroke.getKeyStroke(KeyEvent.VK_M, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
@@ -289,7 +281,6 @@ public class GuiMain {
         List<Component> selection = circuitPanel.getInteraction().getSelectedComponents();
         addSelectionToTiming(selection);
       });
-
       toolsMenu.add(autoLayoutItem);
       toolsMenu.add(addProbeItem);
 
@@ -325,7 +316,7 @@ public class GuiMain {
       menuBar.add(fileMenu);
       menuBar.add(editMenu);
       menuBar.add(viewMenu);
-      menuBar.add(toolsMenu); // Tools Added
+      menuBar.add(toolsMenu);
       menuBar.add(simMenu);
       menuBar.add(Box.createHorizontalGlue());
       zoomStatusLabel = new JLabel("Zoom: 100%  ");
@@ -405,7 +396,6 @@ public class GuiMain {
     });
   }
 
-  // --- NEW: Helper for Timing ---
   private static void addSelectionToTiming(List<Component> selection) {
     if (selection.isEmpty()) {
       JOptionPane.showMessageDialog(frame, "Please select a component (Gate/Switch) to monitor.");
@@ -479,6 +469,45 @@ public class GuiMain {
 
       if (zoomStatusLabel != null)
         zoomStatusLabel.setForeground(Theme.PALETTE_HEADINGS);
+    }
+
+    if (timingFrame != null) {
+      SwingUtilities.updateComponentTreeUI(timingFrame);
+    }
+
+    if (timingScroll != null) {
+      timingScroll.getViewport().setBackground(Theme.BACKGROUND);
+      timingScroll.getVerticalScrollBar().setUI(new ThemedScrollBarUI());
+      timingScroll.getHorizontalScrollBar().setUI(new ThemedScrollBarUI());
+      timingScroll.repaint(); // Force repaint
+    }
+
+    if (timingTools != null) {
+      timingTools.setBackground(Theme.PALETTE_BACKGROUND);
+
+      for (java.awt.Component c : timingTools.getComponents()) {
+        if (c instanceof JButton) {
+          JButton btn = (JButton) c;
+          btn.setOpaque(true);
+          btn.setBorderPainted(false); // Flat look
+          btn.setFocusPainted(false);
+          btn.setBackground(Theme.BUTTON_BACKGROUND);
+          btn.setForeground(Theme.TEXT_COLOR);
+
+          // Add simple hover effect if missing
+          if (btn.getMouseListeners().length < 2) {
+            btn.addMouseListener(new MouseAdapter() {
+              public void mouseEntered(MouseEvent e) {
+                btn.setBackground(Theme.BUTTON_HOVER);
+              }
+
+              public void mouseExited(MouseEvent e) {
+                btn.setBackground(Theme.BUTTON_BACKGROUND);
+              }
+            });
+          }
+        }
+      }
     }
   }
 
@@ -561,7 +590,6 @@ public class GuiMain {
     }
   }
 
-  // --- PRESERVED ORIGINAL LOAD LOGIC ---
   private static void performLoad() {
     JFileChooser fc = new JFileChooser();
     fc.setFileFilter(new FileNameExtensionFilter("Logik Files (.lgk)", "lgk"));
@@ -574,7 +602,6 @@ public class GuiMain {
           palette.addCustomTool(cc);
         simController.setCircuit(result.circuit());
 
-        // Only added this line to reset timing
         if (timingPanel != null)
           timingPanel.clear();
 

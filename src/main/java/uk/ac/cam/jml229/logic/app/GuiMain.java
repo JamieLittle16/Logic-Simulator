@@ -130,8 +130,15 @@ public class GuiMain {
       timingScroll.getHorizontalScrollBar().setUnitIncrement(20);
       timingScroll.setBorder(null);
 
+      // Attach Header and Corner
       timingScroll.setRowHeaderView(timingPanel.getRowHeader());
       timingScroll.setCorner(ScrollPaneConstants.UPPER_LEFT_CORNER, new JPanel() {
+        {
+          setBackground(Theme.PALETTE_BACKGROUND);
+        }
+      });
+
+      timingScroll.setCorner(ScrollPaneConstants.LOWER_LEFT_CORNER, new JPanel() {
         {
           setBackground(Theme.PALETTE_BACKGROUND);
         }
@@ -169,9 +176,10 @@ public class GuiMain {
       fileMenu.add(saveItem);
       fileMenu.add(loadItem);
 
+      // Add Settings Item
       JMenuItem settingsItem = new JMenuItem("Settings...");
       settingsItem.addActionListener(e -> showSettingsDialog());
-      fileMenu.addSeparator(); // Separator before settings
+      fileMenu.addSeparator();
       fileMenu.add(settingsItem);
 
       JMenu editMenu = new JMenu("Edit");
@@ -413,6 +421,63 @@ public class GuiMain {
     });
   }
 
+  private static void showSettingsDialog() {
+    JDialog dialog = new JDialog(frame, "Simulation Settings", true);
+    dialog.setLayout(new BorderLayout());
+    dialog.setSize(300, 200);
+    dialog.setLocationRelativeTo(frame);
+
+    JPanel content = new JPanel();
+    content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+    content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+    content.setBackground(Theme.PALETTE_BACKGROUND);
+
+    JCheckBox enableDelay = new JCheckBox("Enable Propagation Delay (Hazards)");
+    enableDelay.setSelected(SettingsManager.isPropagationDelayEnabled());
+    enableDelay.setOpaque(false);
+    enableDelay.setForeground(Theme.TEXT_COLOR);
+
+    JPanel delayPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    delayPanel.setOpaque(false);
+    JLabel delayLabel = new JLabel("Gate Delay (Ticks): ");
+    delayLabel.setForeground(Theme.TEXT_COLOR);
+    JSpinner delaySpinner = new JSpinner(new SpinnerNumberModel(SettingsManager.getGateDelay(), 1, 50, 1));
+    delayPanel.add(delayLabel);
+    delayPanel.add(delaySpinner);
+
+    delaySpinner.setEnabled(enableDelay.isSelected());
+    enableDelay.addActionListener(e -> delaySpinner.setEnabled(enableDelay.isSelected()));
+
+    content.add(enableDelay);
+    content.add(Box.createVerticalStrut(10));
+    content.add(delayPanel);
+    content.add(Box.createVerticalGlue());
+
+    JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+    buttons.setBackground(Theme.PALETTE_BACKGROUND);
+
+    JButton restoreBtn = new JButton("Restore Defaults");
+    restoreBtn.addActionListener(e -> {
+      enableDelay.setSelected(true);
+      delaySpinner.setValue(1);
+      delaySpinner.setEnabled(true);
+    });
+
+    JButton okBtn = new JButton("OK");
+    okBtn.addActionListener(e -> {
+      SettingsManager.setPropagationDelayEnabled(enableDelay.isSelected());
+      SettingsManager.setGateDelay((Integer) delaySpinner.getValue());
+      dialog.dispose();
+    });
+
+    buttons.add(restoreBtn);
+    buttons.add(okBtn);
+
+    dialog.add(content, BorderLayout.CENTER);
+    dialog.add(buttons, BorderLayout.SOUTH);
+    dialog.setVisible(true);
+  }
+
   private static void addSelectionToTiming(List<Component> selection) {
     if (selection.isEmpty()) {
       JOptionPane.showMessageDialog(frame, "Please select a component (Gate/Switch) to monitor.");
@@ -492,11 +557,26 @@ public class GuiMain {
       SwingUtilities.updateComponentTreeUI(timingFrame);
     }
 
+    // --- FIX: Proper Theme Update for Timing Panel ---
+    if (timingPanel != null) {
+      timingPanel.updateTheme(); // Use the new method
+    }
+
     if (timingScroll != null) {
       timingScroll.getViewport().setBackground(Theme.BACKGROUND);
       timingScroll.getVerticalScrollBar().setUI(new ThemedScrollBarUI());
       timingScroll.getHorizontalScrollBar().setUI(new ThemedScrollBarUI());
-      timingScroll.repaint(); // Force repaint
+
+      // Update corner
+      JComponent corner = (JComponent) timingScroll.getCorner(ScrollPaneConstants.UPPER_LEFT_CORNER);
+      if (corner != null)
+        corner.setBackground(Theme.PALETTE_BACKGROUND);
+
+      JComponent cornerLL = (JComponent) timingScroll.getCorner(ScrollPaneConstants.LOWER_LEFT_CORNER);
+      if (cornerLL != null)
+        cornerLL.setBackground(Theme.PALETTE_BACKGROUND);
+
+      timingScroll.repaint();
     }
 
     if (timingTools != null) {
@@ -511,7 +591,6 @@ public class GuiMain {
           btn.setBackground(Theme.BUTTON_BACKGROUND);
           btn.setForeground(Theme.TEXT_COLOR);
 
-          // Add simple hover effect if missing
           if (btn.getMouseListeners().length < 2) {
             btn.addMouseListener(new MouseAdapter() {
               public void mouseEntered(MouseEvent e) {
@@ -660,66 +739,5 @@ public class GuiMain {
         frame.setSize(prevSize);
     }
     frame.setVisible(true);
-  }
-
-  private static void showSettingsDialog() {
-    JDialog dialog = new JDialog(frame, "Simulation Settings", true);
-    dialog.setLayout(new BorderLayout());
-    dialog.setSize(300, 200);
-    dialog.setLocationRelativeTo(frame);
-
-    JPanel content = new JPanel();
-    content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-    content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-    content.setBackground(Theme.PALETTE_BACKGROUND); // Theme aware
-
-    // Enable/Disable Checkbox
-    JCheckBox enableDelay = new JCheckBox("Enable Propagation Delay (Hazards)");
-    enableDelay.setSelected(SettingsManager.isPropagationDelayEnabled());
-    enableDelay.setOpaque(false);
-    enableDelay.setForeground(Theme.TEXT_COLOR);
-
-    // Delay Spinner
-    JPanel delayPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-    delayPanel.setOpaque(false);
-    JLabel delayLabel = new JLabel("Gate Delay (Ticks): ");
-    delayLabel.setForeground(Theme.TEXT_COLOR);
-    JSpinner delaySpinner = new JSpinner(new SpinnerNumberModel(SettingsManager.getGateDelay(), 1, 50, 1));
-    delayPanel.add(delayLabel);
-    delayPanel.add(delaySpinner);
-
-    // Enable/Disable spinner based on checkbox
-    delaySpinner.setEnabled(enableDelay.isSelected());
-    enableDelay.addActionListener(e -> delaySpinner.setEnabled(enableDelay.isSelected()));
-
-    content.add(enableDelay);
-    content.add(Box.createVerticalStrut(10));
-    content.add(delayPanel);
-    content.add(Box.createVerticalGlue());
-
-    // Buttons (Save / Restore)
-    JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-    buttons.setBackground(Theme.PALETTE_BACKGROUND);
-
-    JButton restoreBtn = new JButton("Restore Defaults");
-    restoreBtn.addActionListener(e -> {
-      enableDelay.setSelected(false);
-      delaySpinner.setValue(1);
-      delaySpinner.setEnabled(false);
-    });
-
-    JButton okBtn = new JButton("OK");
-    okBtn.addActionListener(e -> {
-      SettingsManager.setPropagationDelayEnabled(enableDelay.isSelected());
-      SettingsManager.setGateDelay((Integer) delaySpinner.getValue());
-      dialog.dispose();
-    });
-
-    buttons.add(restoreBtn);
-    buttons.add(okBtn);
-
-    dialog.add(content, BorderLayout.CENTER);
-    dialog.add(buttons, BorderLayout.SOUTH);
-    dialog.setVisible(true);
   }
 }

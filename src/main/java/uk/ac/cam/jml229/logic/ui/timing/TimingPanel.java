@@ -24,8 +24,17 @@ public class TimingPanel extends JPanel implements Scrollable {
     setAutoscrolls(true);
   }
 
+  // Helper to get the sticky header
   public JPanel getRowHeader() {
     return rowHeader;
+  }
+
+  // --- FIX: Theming Method ---
+  public void updateTheme() {
+    setBackground(Theme.BACKGROUND);
+    rowHeader.setBackground(Theme.PANEL_BACKGROUND);
+    rowHeader.repaint();
+    repaint();
   }
 
   public void addMonitor(SignalMonitor m) {
@@ -60,8 +69,7 @@ public class TimingPanel extends JPanel implements Scrollable {
     Rectangle visible = getVisibleRect();
     int width = getWidth();
 
-    // Auto-scroll only if we are near the live edge (tolerance 100px)
-    // This prevents "fighting" when you scroll back to read history.
+    // Only auto-scroll if we are ALREADY at the live edge (tolerance 100px)
     if (width > 0 && visible.x + visible.width >= width - 100) {
       scrollRectToVisible(new Rectangle(width - 1, 0, 1, 1));
     }
@@ -131,9 +139,13 @@ public class TimingPanel extends JPanel implements Scrollable {
 
     Rectangle view = getVisibleRect();
 
-    // --- FIX: Start 1 step early to ensure lines connect from off-screen ---
-    int minI = Math.max(0, (totalWidth - (view.x + view.width)) / timeStep - 1);
-    int maxI = Math.min(bufferSize, (totalWidth - view.x) / timeStep + 1);
+    // --- FIX IS HERE: Widen the loop range (-2 to +2) ---
+    // -2: Ensures we start drawing from well off-screen (Right) so the line enters
+    // smoothly.
+    // +2: Ensures we draw past the left edge, preventing the line from "breaking"
+    // before it leaves the screen.
+    int minI = Math.max(0, (totalWidth - (view.x + view.width)) / timeStep - 2);
+    int maxI = Math.min(bufferSize, (totalWidth - view.x) / timeStep + 2);
 
     int prevX = -1;
     int prevY = -1;

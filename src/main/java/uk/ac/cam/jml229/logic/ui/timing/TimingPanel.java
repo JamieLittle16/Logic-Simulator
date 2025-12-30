@@ -13,6 +13,9 @@ public class TimingPanel extends JPanel implements Scrollable {
   private int timeStep = 5;
   private boolean paused = false;
 
+  // --- Header Component for Names ---
+  private final RowHeader rowHeader = new RowHeader();
+
   private static final int ROW_HEIGHT = 60;
   private static final int LABEL_WIDTH = 140;
 
@@ -21,22 +24,30 @@ public class TimingPanel extends JPanel implements Scrollable {
     setAutoscrolls(true);
   }
 
+  public JPanel getRowHeader() {
+    return rowHeader;
+  }
+
   public void addMonitor(SignalMonitor m) {
     monitors.add(m);
     revalidate();
     repaint();
+    rowHeader.revalidate();
+    rowHeader.repaint();
   }
 
   public void clear() {
     monitors.clear();
     revalidate();
     repaint();
+    rowHeader.repaint();
   }
 
   public void scrollToPresent() {
-    // Scroll to the far right (live edge)
     int w = getWidth();
-    scrollRectToVisible(new Rectangle(w - 1, 0, 1, 1));
+    if (w > 0) {
+      scrollRectToVisible(new Rectangle(w - 1, 0, 1, 1));
+    }
     repaint();
   }
 
@@ -48,11 +59,14 @@ public class TimingPanel extends JPanel implements Scrollable {
 
     Rectangle visible = getVisibleRect();
     int width = getWidth();
-    if (visible.x + visible.width >= width - timeStep * 2) {
+
+    // Auto-scroll only if we are near the live edge (tolerance 100px)
+    // This prevents "fighting" when you scroll back to read history.
+    if (width > 0 && visible.x + visible.width >= width - 100) {
       scrollRectToVisible(new Rectangle(width - 1, 0, 1, 1));
-    } else {
-      repaint();
     }
+
+    repaint();
   }
 
   public void togglePause() {
@@ -81,7 +95,8 @@ public class TimingPanel extends JPanel implements Scrollable {
 
   @Override
   public Dimension getPreferredSize() {
-    int w = LABEL_WIDTH + (bufferSize * timeStep);
+    // Width is ONLY the graph data. Labels are in RowHeader.
+    int w = (bufferSize * timeStep);
     int h = Math.max(400, monitors.size() * ROW_HEIGHT + 20);
     return new Dimension(w, h);
   }
@@ -93,8 +108,6 @@ public class TimingPanel extends JPanel implements Scrollable {
     Graphics2D g2 = (Graphics2D) g;
     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 
-    Rectangle viewRect = getVisibleRect();
-    int labelX = viewRect.x;
     int w = getWidth();
     int y = 10;
 
@@ -102,16 +115,6 @@ public class TimingPanel extends JPanel implements Scrollable {
       drawSignalRow(g2, m, y, w);
       y += ROW_HEIGHT;
     }
-
-    y = 10;
-    for (SignalMonitor m : monitors) {
-      drawLabelOverlay(g2, m, labelX, y);
-      y += ROW_HEIGHT;
-    }
-
-    g2.setColor(Theme.GRID_MAJOR);
-    g2.setStroke(new BasicStroke(2));
-    g2.drawLine(labelX + LABEL_WIDTH, viewRect.y, labelX + LABEL_WIDTH, viewRect.y + viewRect.height);
   }
 
   private void drawSignalRow(Graphics2D g2, SignalMonitor m, int y, int totalWidth) {
@@ -119,6 +122,7 @@ public class TimingPanel extends JPanel implements Scrollable {
     int graphTop = y + 10;
     int graphBot = rowBot - 10;
 
+    // Grid Line
     g2.setColor(Theme.GRID_MINOR);
     g2.drawLine(0, rowBot, totalWidth, rowBot);
 
@@ -126,7 +130,9 @@ public class TimingPanel extends JPanel implements Scrollable {
     g2.setStroke(new BasicStroke(2));
 
     Rectangle view = getVisibleRect();
-    int minI = Math.max(0, (totalWidth - (view.x + view.width)) / timeStep);
+
+    // --- FIX: Start 1 step early to ensure lines connect from off-screen ---
+    int minI = Math.max(0, (totalWidth - (view.x + view.width)) / timeStep - 1);
     int maxI = Math.min(bufferSize, (totalWidth - view.x) / timeStep + 1);
 
     int prevX = -1;
@@ -138,29 +144,13 @@ public class TimingPanel extends JPanel implements Scrollable {
       int py = signal ? graphTop : graphBot;
 
       if (prevX != -1) {
-        g2.drawLine(prevX, prevY, px, prevY);
+        g2.drawLine(prevX, prevY, px, prevY); // Horizontal part
         if (prevY != py)
-          g2.drawLine(px, prevY, px, py);
+          g2.drawLine(px, prevY, px, py); // Vertical edge
       }
       prevX = px;
       prevY = py;
     }
-  }
-
-  private void drawLabelOverlay(Graphics2D g2, SignalMonitor m, int x, int y) {
-    g2.setColor(Theme.PANEL_BACKGROUND);
-    g2.fillRect(x, y, LABEL_WIDTH, ROW_HEIGHT);
-
-    g2.setColor(Theme.GRID_MAJOR);
-    g2.drawLine(x, y + ROW_HEIGHT, x + LABEL_WIDTH, y + ROW_HEIGHT);
-
-    g2.setColor(m.getCurrentState() ? Theme.WIRE_ON : Theme.WIRE_OFF);
-    g2.fillOval(x + 10, y + ROW_HEIGHT / 2 - 6, 12, 12);
-
-    g2.setColor(Theme.TEXT_COLOR);
-    g2.setFont(new Font("SansSerif", Font.BOLD, 12));
-    g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-    g2.drawString(m.getName(), x + 30, y + ROW_HEIGHT / 2 + 5);
   }
 
   @Override
@@ -186,5 +176,43 @@ public class TimingPanel extends JPanel implements Scrollable {
   @Override
   public boolean getScrollableTracksViewportHeight() {
     return false;
+  }
+
+  // --- Sticky Row Header Class ---
+  private class RowHeader extends JPanel {
+    public RowHeader() {
+      setBackground(Theme.PANEL_BACKGROUND);
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+      return new Dimension(LABEL_WIDTH, TimingPanel.this.getHeight());
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+      super.paintComponent(g);
+      Graphics2D g2 = (Graphics2D) g;
+      g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+      int y = 10;
+      for (SignalMonitor m : monitors) {
+        g2.setColor(Theme.PANEL_BACKGROUND);
+        g2.fillRect(0, y, LABEL_WIDTH, ROW_HEIGHT);
+
+        g2.setColor(Theme.GRID_MAJOR);
+        g2.drawLine(0, y + ROW_HEIGHT, LABEL_WIDTH, y + ROW_HEIGHT);
+        g2.drawLine(LABEL_WIDTH - 1, y, LABEL_WIDTH - 1, y + ROW_HEIGHT);
+
+        g2.setColor(m.getCurrentState() ? Theme.WIRE_ON : Theme.WIRE_OFF);
+        g2.fillOval(10, y + ROW_HEIGHT / 2 - 6, 12, 12);
+
+        g2.setColor(Theme.TEXT_COLOR);
+        g2.setFont(new Font("SansSerif", Font.BOLD, 12));
+        g2.drawString(m.getName(), 30, y + ROW_HEIGHT / 2 + 5);
+
+        y += ROW_HEIGHT;
+      }
+    }
   }
 }

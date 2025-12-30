@@ -130,6 +130,13 @@ public class GuiMain {
       timingScroll.getHorizontalScrollBar().setUnitIncrement(20);
       timingScroll.setBorder(null);
 
+      timingScroll.setRowHeaderView(timingPanel.getRowHeader());
+      timingScroll.setCorner(ScrollPaneConstants.UPPER_LEFT_CORNER, new JPanel() {
+        {
+          setBackground(Theme.PALETTE_BACKGROUND);
+        }
+      });
+
       timingFrame.add(timingScroll, BorderLayout.CENTER);
       timingFrame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 

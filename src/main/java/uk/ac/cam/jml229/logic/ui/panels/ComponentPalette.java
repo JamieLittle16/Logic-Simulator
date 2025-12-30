@@ -7,6 +7,7 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.AffineTransform;
 import java.util.Map;
 import java.util.List;
+import java.util.ArrayList;
 
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
@@ -20,6 +21,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
   private final CircuitRenderer renderer;
   private boolean hasCustomHeading = false;
   private JPanel currentSection;
+  private final List<Component> customPrototypes = new ArrayList<>();
 
   public ComponentPalette(CircuitInteraction interaction, CircuitRenderer renderer) {
     this.interaction = interaction;
@@ -112,6 +114,8 @@ public class ComponentPalette extends JPanel implements Scrollable {
   }
 
   public void addCustomTool(Component prototype) {
+    customPrototypes.add(prototype);
+
     if (!hasCustomHeading) {
       addLabel("Custom IC");
       hasCustomHeading = true;
@@ -180,6 +184,41 @@ public class ComponentPalette extends JPanel implements Scrollable {
     button.addMouseListener(new MouseAdapter() {
       @Override
       public void mousePressed(MouseEvent e) {
+        // Right-Click to Delete Custom ICs
+        if (SwingUtilities.isRightMouseButton(e)) {
+          if (prototype instanceof CustomComponent) {
+            JPopupMenu popup = new JPopupMenu();
+            // Style the popup to match the theme
+            popup.setBackground(Theme.PALETTE_BACKGROUND);
+            popup.setBorder(BorderFactory.createLineBorder(Theme.BUTTON_BORDER));
+
+            JMenuItem deleteItem = new JMenuItem("Delete " + prototype.getName());
+            deleteItem.setBackground(Theme.PALETTE_BACKGROUND);
+            deleteItem.setForeground(Theme.TEXT_COLOR);
+
+            deleteItem.addActionListener(event -> {
+              int confirm = JOptionPane.showConfirmDialog(ComponentPalette.this,
+                  "Are you sure you want to delete '" + prototype.getName() + "'?",
+                  "Delete Custom Component", JOptionPane.YES_NO_OPTION);
+
+              if (confirm == JOptionPane.YES_OPTION) {
+                customPrototypes.remove(prototype);
+
+                Container parent = button.getParent();
+                if (parent != null) {
+                  parent.remove(button);
+                  parent.revalidate();
+                  parent.repaint();
+                }
+              }
+            });
+
+            popup.add(deleteItem);
+            popup.show(button, e.getX(), e.getY());
+          }
+          return; // Stop processing (don't place component on right click)
+        }
+
         Component newComp;
         if (prototype instanceof CustomComponent) {
           newComp = prototype.makeCopy();
@@ -207,6 +246,10 @@ public class ComponentPalette extends JPanel implements Scrollable {
       currentSection.add(button);
     else
       add(button);
+  }
+
+  public List<Component> getCustomPrototypes() {
+    return customPrototypes;
   }
 
   @Override

@@ -448,8 +448,8 @@ public class GuiMain {
       if (!file.getName().endsWith(".lgk"))
         file = new File(file.getAbsolutePath() + ".lgk");
       try {
-        List<Component> empty = new ArrayList<>();
-        StorageManager.save(file, circuitPanel.getInteraction().getCircuit(), empty);
+        List<Component> tools = palette.getCustomPrototypes();
+        StorageManager.save(file, circuitPanel.getInteraction().getCircuit(), tools);
         JOptionPane.showMessageDialog(frame, "Saved successfully!");
       } catch (IOException ex) {
         JOptionPane.showMessageDialog(frame, "Error saving: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);

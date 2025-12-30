@@ -22,7 +22,7 @@ public class SettingsManager {
   private static final String DEFAULT_THEME = "Default Light";
 
   public static boolean isPropagationDelayEnabled() {
-    return prefs.getBoolean(KEY_PROP_DELAY_ENABLED, false);
+    return prefs.getBoolean(KEY_PROP_DELAY_ENABLED, true);
   }
 
   public static void setPropagationDelayEnabled(boolean enabled) {

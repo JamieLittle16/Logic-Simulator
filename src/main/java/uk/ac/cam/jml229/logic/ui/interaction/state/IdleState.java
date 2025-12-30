@@ -164,6 +164,41 @@ public class IdleState implements InteractionState {
 
     if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE)
       ctx.deleteSelection();
+
+    if (!ctx.getSelectedComponents().isEmpty()) {
+      int dx = 0;
+      int dy = 0;
+      // Normal = 10px (Grid), Shift = 1px (Fine)
+      int step = e.isShiftDown() ? 1 : 10;
+
+      boolean isArrow = false;
+      switch (e.getKeyCode()) {
+        case KeyEvent.VK_UP:
+          dy = -step;
+          isArrow = true;
+          break;
+        case KeyEvent.VK_DOWN:
+          dy = step;
+          isArrow = true;
+          break;
+        case KeyEvent.VK_LEFT:
+          dx = -step;
+          isArrow = true;
+          break;
+        case KeyEvent.VK_RIGHT:
+          dx = step;
+          isArrow = true;
+          break;
+      }
+
+      if (isArrow) {
+        ctx.saveHistory();
+        for (Component c : ctx.getSelectedComponents()) {
+          c.setPosition(c.getX() + dx, c.getY() + dy);
+        }
+        ctx.getPanel().repaint();
+      }
+    }
   }
 
   private void renameComponent(Component c) {

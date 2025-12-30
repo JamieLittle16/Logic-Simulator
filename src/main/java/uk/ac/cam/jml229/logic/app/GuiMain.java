@@ -552,7 +552,11 @@ public class GuiMain {
 
     if (menuBar != null) {
       menuBar.setBackground(Theme.isDarkMode ? Theme.PALETTE_BACKGROUND : null);
-      menuBar.setBorder(BorderFactory.createEmptyBorder(0, 0, 1, 0));
+      if (Theme.isDarkMode) {
+        menuBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Theme.BUTTON_BORDER));
+      } else {
+        menuBar.setBorder(BorderFactory.createEmptyBorder(0, 0, 1, 0));
+      }
 
       for (int i = 0; i < menuBar.getMenuCount(); i++) {
         JMenu m = menuBar.getMenu(i);
@@ -624,11 +628,27 @@ public class GuiMain {
       item.setForeground(Theme.TEXT_COLOR);
       item.setOpaque(true);
 
+      if (item instanceof JPopupMenu) {
+        item.setBorder(BorderFactory.createLineBorder(Theme.BUTTON_BORDER));
+        item.setBackground(Theme.PALETTE_BACKGROUND);
+      }
+
+      // Remove default borders that create white "gutters"
+      if (item instanceof JMenuItem) {
+        item.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+      }
+
       if (item instanceof JMenu) {
         JPopupMenu popup = ((JMenu) item).getPopupMenu();
         popup.setBackground(Theme.PALETTE_BACKGROUND);
         popup.setBorder(BorderFactory.createLineBorder(Theme.BUTTON_BORDER));
       }
+
+      if (item instanceof JPopupMenu.Separator) {
+        item.setBackground(Theme.PALETTE_BACKGROUND);
+        item.setForeground(Theme.GRID_MAJOR);
+      }
+
     } else {
       item.setBackground(null);
       item.setForeground(Color.BLACK);

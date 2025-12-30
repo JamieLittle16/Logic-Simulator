@@ -90,6 +90,7 @@ public class GuiMain {
       // --- Init Core Components ---
       circuitPanel = new CircuitPanel();
       CircuitInteraction interaction = circuitPanel.getInteraction();
+      interaction.setSnapToGrid(SettingsManager.isSnapToGrid());
       CircuitRenderer renderer = circuitPanel.getRenderer();
 
       palette = new ComponentPalette(interaction, renderer);

@@ -4,37 +4,66 @@ import java.util.prefs.Preferences;
 
 public class SettingsManager {
 
-  // Unique node for app settings
-  private static final Preferences prefs = Preferences.userRoot().node("logik");
+  private static final Preferences prefs = Preferences.userNodeForPackage(SettingsManager.class);
 
-  // Keys
+  // keys
+  private static final String KEY_THEME = "theme_name";
   private static final String KEY_DARK_MODE = "dark_mode";
-  private static final String KEY_SNAP_GRID = "snap_grid";
-  private static final String KEY_WIN_WIDTH = "win_width";
-  private static final String KEY_WIN_HEIGHT = "win_height";
+  private static final String KEY_SNAP = "snap_to_grid";
   private static final String KEY_WIN_X = "win_x";
   private static final String KEY_WIN_Y = "win_y";
-  private static final String KEY_MAXIMIZED = "win_maximized";
-  private static final String KEY_THEME_NAME = "theme_name";
+  private static final String KEY_WIN_W = "win_w";
+  private static final String KEY_WIN_H = "win_h";
+  private static final String KEY_WIN_MAX = "win_max";
 
-  // --- Getters (Load) ---
+  // Propagation Settings
+  private static final String KEY_PROP_DELAY_ENABLED = "prop_delay_enabled";
+  private static final String KEY_GATE_DELAY = "gate_delay";
+
+  // defaults
+  private static final String DEFAULT_THEME = "Default Light";
+
+  public static boolean isPropagationDelayEnabled() {
+    return prefs.getBoolean(KEY_PROP_DELAY_ENABLED, false);
+  }
+
+  public static void setPropagationDelayEnabled(boolean enabled) {
+    prefs.putBoolean(KEY_PROP_DELAY_ENABLED, enabled);
+  }
+
+  public static int getGateDelay() {
+    return prefs.getInt(KEY_GATE_DELAY, 1);
+  }
+
+  public static void setGateDelay(int delay) {
+    prefs.putInt(KEY_GATE_DELAY, delay);
+  }
+
+  public static String getThemeName() {
+    return prefs.get(KEY_THEME, DEFAULT_THEME);
+  }
+
+  public static void setThemeName(String name) {
+    prefs.put(KEY_THEME, name);
+  }
 
   public static boolean isDarkMode() {
     return prefs.getBoolean(KEY_DARK_MODE, false);
   }
 
+  public static void setDarkMode(boolean dark) {
+    prefs.putBoolean(KEY_DARK_MODE, dark);
+  }
+
   public static boolean isSnapToGrid() {
-    return prefs.getBoolean(KEY_SNAP_GRID, false);
+    return prefs.getBoolean(KEY_SNAP, true);
   }
 
-  public static int getWindowWidth() {
-    return prefs.getInt(KEY_WIN_WIDTH, 1280);
+  public static void setSnapToGrid(boolean snap) {
+    prefs.putBoolean(KEY_SNAP, snap);
   }
 
-  public static int getWindowHeight() {
-    return prefs.getInt(KEY_WIN_HEIGHT, 800);
-  }
-
+  // Window bounds
   public static int getWindowX() {
     return prefs.getInt(KEY_WIN_X, -1);
   }
@@ -43,46 +72,23 @@ public class SettingsManager {
     return prefs.getInt(KEY_WIN_Y, -1);
   }
 
+  public static int getWindowWidth() {
+    return prefs.getInt(KEY_WIN_W, 1280);
+  }
+
+  public static int getWindowHeight() {
+    return prefs.getInt(KEY_WIN_H, 800);
+  }
+
   public static boolean isMaximized() {
-    return prefs.getBoolean(KEY_MAXIMIZED, false);
+    return prefs.getBoolean(KEY_WIN_MAX, false);
   }
 
-  public static String getThemeName() {
-    return prefs.get(KEY_THEME_NAME, "Default Light");
-  }
-
-  // --- Setters (Save) ---
-
-  // CRITICAL: Forces the OS to write the file immediately
-  private static void save() {
-    try {
-      prefs.flush();
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-  }
-
-  public static void setDarkMode(boolean dark) {
-    prefs.putBoolean(KEY_DARK_MODE, dark);
-    save();
-  }
-
-  public static void setSnapToGrid(boolean snap) {
-    prefs.putBoolean(KEY_SNAP_GRID, snap);
-    save();
-  }
-
-  public static void setWindowBounds(int x, int y, int w, int h, boolean maximized) {
+  public static void setWindowBounds(int x, int y, int w, int h, boolean max) {
     prefs.putInt(KEY_WIN_X, x);
     prefs.putInt(KEY_WIN_Y, y);
-    prefs.putInt(KEY_WIN_WIDTH, w);
-    prefs.putInt(KEY_WIN_HEIGHT, h);
-    prefs.putBoolean(KEY_MAXIMIZED, maximized);
-    save();
-  }
-
-  public static void setThemeName(String name) {
-    prefs.put(KEY_THEME_NAME, name);
-    save();
+    prefs.putInt(KEY_WIN_W, w);
+    prefs.putInt(KEY_WIN_H, h);
+    prefs.putBoolean(KEY_WIN_MAX, max);
   }
 }

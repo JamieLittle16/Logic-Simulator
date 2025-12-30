@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Objects;
 
 import uk.ac.cam.jml229.logic.core.Wire;
+import uk.ac.cam.jml229.logic.core.Simulator;
+import uk.ac.cam.jml229.logic.io.SettingsManager;
 
 public abstract class Component {
   private String name;
@@ -53,7 +55,15 @@ public abstract class Component {
     // Only update if value actually changed (Optimisation)
     if (inputs.get(index) != state) {
       inputs.set(index, state);
-      update(); // Trigger logic recalculation
+
+      // Propagation Delay Logic ---
+      if (SettingsManager.isPropagationDelayEnabled()) {
+        // Schedule the update for later
+        Simulator.schedule(this::update, SettingsManager.getGateDelay());
+      } else {
+        // Standard instant update
+        update();
+      }
     }
   }
 

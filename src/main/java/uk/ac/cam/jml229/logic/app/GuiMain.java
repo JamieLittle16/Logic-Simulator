@@ -162,6 +162,11 @@ public class GuiMain {
       fileMenu.add(saveItem);
       fileMenu.add(loadItem);
 
+      JMenuItem settingsItem = new JMenuItem("Settings...");
+      settingsItem.addActionListener(e -> showSettingsDialog());
+      fileMenu.addSeparator(); // Separator before settings
+      fileMenu.add(settingsItem);
+
       JMenu editMenu = new JMenu("Edit");
       JMenuItem undoItem = new JMenuItem("Undo");
       undoItem.setAccelerator(
@@ -648,5 +653,66 @@ public class GuiMain {
         frame.setSize(prevSize);
     }
     frame.setVisible(true);
+  }
+
+  private static void showSettingsDialog() {
+    JDialog dialog = new JDialog(frame, "Simulation Settings", true);
+    dialog.setLayout(new BorderLayout());
+    dialog.setSize(300, 200);
+    dialog.setLocationRelativeTo(frame);
+
+    JPanel content = new JPanel();
+    content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+    content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+    content.setBackground(Theme.PALETTE_BACKGROUND); // Theme aware
+
+    // Enable/Disable Checkbox
+    JCheckBox enableDelay = new JCheckBox("Enable Propagation Delay (Hazards)");
+    enableDelay.setSelected(SettingsManager.isPropagationDelayEnabled());
+    enableDelay.setOpaque(false);
+    enableDelay.setForeground(Theme.TEXT_COLOR);
+
+    // Delay Spinner
+    JPanel delayPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    delayPanel.setOpaque(false);
+    JLabel delayLabel = new JLabel("Gate Delay (Ticks): ");
+    delayLabel.setForeground(Theme.TEXT_COLOR);
+    JSpinner delaySpinner = new JSpinner(new SpinnerNumberModel(SettingsManager.getGateDelay(), 1, 50, 1));
+    delayPanel.add(delayLabel);
+    delayPanel.add(delaySpinner);
+
+    // Enable/Disable spinner based on checkbox
+    delaySpinner.setEnabled(enableDelay.isSelected());
+    enableDelay.addActionListener(e -> delaySpinner.setEnabled(enableDelay.isSelected()));
+
+    content.add(enableDelay);
+    content.add(Box.createVerticalStrut(10));
+    content.add(delayPanel);
+    content.add(Box.createVerticalGlue());
+
+    // Buttons (Save / Restore)
+    JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+    buttons.setBackground(Theme.PALETTE_BACKGROUND);
+
+    JButton restoreBtn = new JButton("Restore Defaults");
+    restoreBtn.addActionListener(e -> {
+      enableDelay.setSelected(false);
+      delaySpinner.setValue(1);
+      delaySpinner.setEnabled(false);
+    });
+
+    JButton okBtn = new JButton("OK");
+    okBtn.addActionListener(e -> {
+      SettingsManager.setPropagationDelayEnabled(enableDelay.isSelected());
+      SettingsManager.setGateDelay((Integer) delaySpinner.getValue());
+      dialog.dispose();
+    });
+
+    buttons.add(restoreBtn);
+    buttons.add(okBtn);
+
+    dialog.add(content, BorderLayout.CENTER);
+    dialog.add(buttons, BorderLayout.SOUTH);
+    dialog.setVisible(true);
   }
 }

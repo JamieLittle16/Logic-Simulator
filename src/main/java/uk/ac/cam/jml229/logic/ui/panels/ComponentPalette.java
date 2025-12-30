@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
 import uk.ac.cam.jml229.logic.ui.interaction.*;
+import uk.ac.cam.jml229.logic.ui.interaction.state.IdleState;
 import uk.ac.cam.jml229.logic.ui.render.*;
 import uk.ac.cam.jml229.logic.app.Theme;
 
@@ -25,9 +26,19 @@ public class ComponentPalette extends JPanel implements Scrollable {
   private JPanel currentSection;
 
   private final List<Component> customPrototypes = new ArrayList<>();
-  private JPanel customHeaderPanel; // The "Custom IC" label
-  private SectionPanel customSectionPanel; // The container for buttons
-  private java.awt.Component customSpacer; // The empty space above the header
+  private JPanel customHeaderPanel;
+  private SectionPanel customSectionPanel;
+  private java.awt.Component customSpacer;
+
+  // -- Cancel Listener ---
+  // Clicking the sidebar background cancels any active placement
+  private final MouseAdapter cancelListener = new MouseAdapter() {
+    @Override
+    public void mousePressed(MouseEvent e) {
+      interaction.setState(new IdleState(interaction));
+      interaction.getPanel().repaint();
+    }
+  };
 
   public ComponentPalette(CircuitInteraction interaction, CircuitRenderer renderer) {
     this.interaction = interaction;
@@ -35,6 +46,9 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
     setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
     setBackground(Theme.PALETTE_BACKGROUND);
+
+    // Listen for clicks on the main background
+    addMouseListener(cancelListener);
 
     // --- Generate from Registry ---
     Map<String, List<ComponentRegistry>> categories = ComponentRegistry.getByCategory();
@@ -77,7 +91,6 @@ public class ComponentPalette extends JPanel implements Scrollable {
     if (getComponentCount() > 0) {
       java.awt.Component spacer = Box.createRigidArea(new Dimension(0, 15));
       add(spacer);
-      // Capture the spacer if this is the Custom section
       if (text.equals("Custom IC")) {
         this.customSpacer = spacer;
       }
@@ -88,11 +101,8 @@ public class ComponentPalette extends JPanel implements Scrollable {
     headerPanel.setOpaque(false);
     headerPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 25));
     headerPanel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-
-    // Match alignment with the button grid (CENTER) so they stack vertically
     headerPanel.setAlignmentX(CENTER_ALIGNMENT);
 
-    // Center the text inside the header
     JLabel label = new JLabel("\u25BC " + text, SwingConstants.CENTER);
     label.setFont(new Font("SansSerif", Font.BOLD, 12));
     label.setForeground(Theme.PALETTE_HEADINGS);
@@ -103,10 +113,13 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
     // --- Section Content ---
     SectionPanel section = new SectionPanel();
+
+    // Listen for clicks on the empty space between buttons
+    section.addMouseListener(cancelListener);
+
     currentSection = section;
     add(section);
 
-    // Capture references if this is the Custom section
     if (text.equals("Custom IC")) {
       this.customHeaderPanel = headerPanel;
       this.customSectionPanel = section;
@@ -136,16 +149,13 @@ public class ComponentPalette extends JPanel implements Scrollable {
   }
 
   public void addCustomTool(Component prototype) {
-    // Add to the list (so it can be saved)
     customPrototypes.add(prototype);
 
-    // Create Header if missing
     if (!hasCustomHeading) {
       addLabel("Custom IC");
       hasCustomHeading = true;
     }
 
-    // Ensure we add to the custom section (even if mixed with other actions)
     if (customSectionPanel != null) {
       currentSection = customSectionPanel;
     }
@@ -211,65 +221,19 @@ public class ComponentPalette extends JPanel implements Scrollable {
     button.setOpaque(false);
     button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
+    // --- LISTENER: Click + Drag Support ---
     MouseAdapter listener = new MouseAdapter() {
       @Override
       public void mousePressed(MouseEvent e) {
-        // --- RIGHT CLICK DELETE LOGIC ---
+        // Right Click = Delete Custom IC
         if (SwingUtilities.isRightMouseButton(e)) {
           if (prototype instanceof CustomComponent) {
-            JPopupMenu popup = new JPopupMenu();
-            popup.setBackground(Theme.PALETTE_BACKGROUND);
-            popup.setBorder(BorderFactory.createLineBorder(Theme.BUTTON_BORDER));
-
-            JMenuItem deleteItem = new JMenuItem("Delete " + prototype.getName());
-            deleteItem.setBackground(Theme.PALETTE_BACKGROUND);
-            deleteItem.setForeground(Theme.TEXT_COLOR);
-
-            deleteItem.addActionListener(event -> {
-              int confirm = JOptionPane.showConfirmDialog(ComponentPalette.this,
-                  "Are you sure you want to delete '" + prototype.getName() + "'?",
-                  "Delete Custom Component", JOptionPane.YES_NO_OPTION);
-
-              if (confirm == JOptionPane.YES_OPTION) {
-                // Remove from list
-                customPrototypes.remove(prototype);
-
-                // Remove button from UI
-                Container parent = button.getParent();
-                if (parent != null) {
-                  parent.remove(button);
-                  parent.revalidate();
-                  parent.repaint();
-                }
-
-                // CLEANUP: If list is empty, remove Header and Spacer
-                if (customPrototypes.isEmpty()) {
-                  if (customHeaderPanel != null) {
-                    ComponentPalette.this.remove(customHeaderPanel);
-                    customHeaderPanel = null;
-                  }
-                  if (customSectionPanel != null) {
-                    ComponentPalette.this.remove(customSectionPanel);
-                    customSectionPanel = null;
-                  }
-                  if (customSpacer != null) {
-                    ComponentPalette.this.remove(customSpacer);
-                    customSpacer = null;
-                  }
-                  hasCustomHeading = false;
-                  ComponentPalette.this.revalidate();
-                  ComponentPalette.this.repaint();
-                }
-              }
-            });
-
-            popup.add(deleteItem);
-            popup.show(button, e.getX(), e.getY());
+            handleDelete(e, prototype, button);
           }
           return;
         }
 
-        // --- LEFT CLICK PLACING LOGIC ---
+        // Left Click = Place Tool
         Component newComp;
         if (prototype instanceof CustomComponent) {
           newComp = prototype.makeCopy();
@@ -280,14 +244,15 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
         if (newComp != null) {
           interaction.startPlacing(newComp);
-          // Immediately update ghost position (for visual feedback)
+
+          interaction.getPanel().requestFocusInWindow();
+
           forwardToInteraction(e);
         }
       }
 
       @Override
       public void mouseDragged(MouseEvent e) {
-        // While dragging from the sidebar, keep updating the ghost on the main panel
         if (SwingUtilities.isLeftMouseButton(e)) {
           forwardToInteraction(e);
         }
@@ -295,10 +260,7 @@ public class ComponentPalette extends JPanel implements Scrollable {
 
       private void forwardToInteraction(MouseEvent e) {
         if (interaction.getPanel().isShowing()) {
-          // Convert Sidebar Coordinates -> CircuitPanel Coordinates
           Point p = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), interaction.getPanel());
-
-          // Send a fake "Moved" event to the interaction engine
           interaction.mouseMoved(new MouseEvent(
               interaction.getPanel(),
               MouseEvent.MOUSE_MOVED,
@@ -328,6 +290,54 @@ public class ComponentPalette extends JPanel implements Scrollable {
       currentSection.add(button);
     else
       add(button);
+  }
+
+  private void handleDelete(MouseEvent e, Component prototype, JPanel button) {
+    JPopupMenu popup = new JPopupMenu();
+    popup.setBackground(Theme.PALETTE_BACKGROUND);
+    popup.setBorder(BorderFactory.createLineBorder(Theme.BUTTON_BORDER));
+
+    JMenuItem deleteItem = new JMenuItem("Delete " + prototype.getName());
+    deleteItem.setBackground(Theme.PALETTE_BACKGROUND);
+    deleteItem.setForeground(Theme.TEXT_COLOR);
+
+    deleteItem.addActionListener(event -> {
+      int confirm = JOptionPane.showConfirmDialog(ComponentPalette.this,
+          "Are you sure you want to delete '" + prototype.getName() + "'?",
+          "Delete Custom Component", JOptionPane.YES_NO_OPTION);
+
+      if (confirm == JOptionPane.YES_OPTION) {
+        customPrototypes.remove(prototype);
+
+        Container parent = button.getParent();
+        if (parent != null) {
+          parent.remove(button);
+          parent.revalidate();
+          parent.repaint();
+        }
+
+        if (customPrototypes.isEmpty()) {
+          if (customHeaderPanel != null) {
+            ComponentPalette.this.remove(customHeaderPanel);
+            customHeaderPanel = null;
+          }
+          if (customSectionPanel != null) {
+            ComponentPalette.this.remove(customSectionPanel);
+            customSectionPanel = null;
+          }
+          if (customSpacer != null) {
+            ComponentPalette.this.remove(customSpacer);
+            customSpacer = null;
+          }
+          hasCustomHeading = false;
+          ComponentPalette.this.revalidate();
+          ComponentPalette.this.repaint();
+        }
+      }
+    });
+
+    popup.add(deleteItem);
+    popup.show(button, e.getX(), e.getY());
   }
 
   @Override

@@ -5,10 +5,11 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 import java.util.List;
-import java.util.function.Consumer; // ADDED
+import java.util.function.Consumer;
 
 import uk.ac.cam.jml229.logic.components.*;
 import uk.ac.cam.jml229.logic.components.Component;
+import uk.ac.cam.jml229.logic.components.misc.TextLabel;
 import uk.ac.cam.jml229.logic.core.Circuit;
 import uk.ac.cam.jml229.logic.core.Wire;
 import uk.ac.cam.jml229.logic.ui.panels.CircuitPanel;
@@ -20,7 +21,7 @@ import uk.ac.cam.jml229.logic.ui.render.CircuitRenderer.WaypointRef;
 import uk.ac.cam.jml229.logic.ui.interaction.state.*;
 import uk.ac.cam.jml229.logic.io.HistoryManager;
 import uk.ac.cam.jml229.logic.io.StorageManager;
-import uk.ac.cam.jml229.logic.app.Theme; // ADDED
+import uk.ac.cam.jml229.logic.app.Theme;
 
 public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
@@ -33,7 +34,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
 
   private InteractionState currentState;
 
-  // --- NEW: Callback for Timing ---
+  // --- Callback for Timing ---
   private Consumer<List<Component>> onOpenTiming;
 
   // --- SHARED VIEW STATE ---
@@ -65,7 +66,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     setState(new IdleState(this));
   }
 
-  // --- NEW: Setter for callback ---
+  // --- Setter for callback ---
   public void setOnOpenTiming(Consumer<List<Component>> callback) {
     this.onOpenTiming = callback;
   }
@@ -135,7 +136,7 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
   // --- Events ---
   @Override
   public void mousePressed(MouseEvent e) {
-    // --- NEW: Context Menu Logic ---
+    // Context Menu Logic
     if (SwingUtilities.isRightMouseButton(e)) {
       Component c = hitTester.findComponentAt(getWorldPoint(e));
       if (c != null) {
@@ -152,11 +153,9 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
         return;
       }
     }
-    // -------------------------------
     currentState.mousePressed(e);
   }
 
-  // --- NEW: Context Menu ---
   private void showContextMenu(MouseEvent e) {
     JPopupMenu menu = new JPopupMenu();
 
@@ -199,6 +198,28 @@ public class CircuitInteraction extends MouseAdapter implements KeyListener {
     menu.add(delayItem);
 
     menu.addSeparator();
+    JMenuItem renameItem = new JMenuItem("Rename");
+    renameItem.addActionListener(ev -> {
+      if (selectedComponents.size() == 1) {
+        Component c = selectedComponents.get(0);
+        String newName = JOptionPane.showInputDialog(panel, "Rename:", c.getName());
+        if (newName != null && !newName.trim().isEmpty()) {
+          // Allow Labels to have long text (30 chars), keep others short (8 chars)
+          int maxLen = (c instanceof TextLabel) ? 30 : 8;
+
+          if (newName.length() > maxLen) {
+            newName = newName.substring(0, maxLen);
+          }
+
+          saveHistory();
+          c.setName(newName);
+          panel.repaint();
+        }
+      }
+    });
+    // Only enable rename if exactly one component is selected
+    renameItem.setEnabled(selectedComponents.size() == 1);
+    menu.add(renameItem);
 
     JMenuItem copyItem = new JMenuItem("Copy");
     copyItem.addActionListener(ev -> copy());
